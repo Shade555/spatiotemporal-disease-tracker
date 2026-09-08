@@ -1,0 +1,26 @@
+Act as an expert frontend engineer and creative UI designer. 
+Build a responsive, highly unique tech-themed website utilizing a strict 8-Bit Retro Arcade / Command-Line Interface (CLI) aesthetic.
+
+### 1. Visual & Layout Architecture
+- Theme Layout: Structure the page like an early 90s retro OS, CRT desktop monitor, or tactical cyber-terminal dashboard.
+- Main Frame: Wrap the entire screen viewport in a dark slate-gray bezel container with a subtle, stylized inner box-shadow to simulate a curved retro CRT display.
+- Panels: Use an asymmetric Bento Grid or modular terminal-window layout. Each layout block should look like an open application window with a pixelated title bar, standard mini action icons (minimize, maximize, close represented by blocky icons), and thick staircase-pixelated borders.
+
+### 2. Design System & CSS Rules
+- Typography: Use pixelated Google Fonts such as "Press Start 2P" for primary headings/actions, and "VT323" or "Share Tech Mono" for body content and telemetry logs. 
+- Color Palette: Deep terminal background (#0F172A), toxic terminal green (#22C55E), arcade orange (#F97316), and vibrant pixel purple (#A855F7). Use pure black (#000000) for hard stepped shadows.
+- Border Styling: Emulate a pixel-art staircase effect on all containers, buttons, and badges. Avoid modern rounded borders (use border-radius: 0px).
+- Scanline Overlay: Implement a subtle overlay across the screen using a linear gradient or CSS pattern to mimic classic CRT monitor scanlines and a faint phosphor glow effect.
+
+### 3. Tech-Themed Components to Include
+- Header Terminal Status Bar: Display live mock system stats (e.g., "SYSTEM: ONLINE", "MEMORY: 64KB OK", "USER: ANONYMOUS", a running digital clock).
+- Live Telemetry Output Component: A scrolling logger console displaying fake tech boot scripts or system initialization logs in a monospace font.
+- Interactive Grid Cards: Tech feature blocks structured like retro inventory slots, or interactive server blades.
+- Pixel-Art Health Bars: Use modular, segmented progress bars (like an arcade game health bar) to visualize data metrics, loading speeds, or skill trackers.
+
+### 4. Interactions & Animations
+- Hover States: When hovering over interactive pixel buttons or cards, they must physically shift down and right by 2px with an immediate displacement (no modern smooth transitions) to simulate a physical mechanical keypress.
+- Cursor: Replace the default system cursor with a custom, blocky 8-bit pointer or a blinking square command terminal cursor.
+- Loading/Flicker Effect: Add an initial page-load animation that mimics a vintage monitor firing up, featuring a quick screen flicker and a vertical expanding line animation.
+
+Output clean, modular, and component-ready code (HTML/Tailwind CSS or React/TypeScript as appropriate). Focus on making it fully responsive across mobile and desktop viewports while preserving the strict retro alignment.
