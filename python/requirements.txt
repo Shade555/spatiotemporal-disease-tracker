@@ -1,0 +1,2 @@
+# Python data science dependencies will be pinned during notebook setup.
+# Keep production JavaScript dependencies in package.json and library.md.

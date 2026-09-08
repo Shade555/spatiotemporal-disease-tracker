@@ -1,0 +1,54 @@
+# Installed Library Ledger
+
+Last updated: 2026-09-08
+
+This file tracks libraries installed through npm for the Spatiotemporal Epidemic Tracking and Early Warning System. Keep it synchronized with `package.json` whenever dependencies are added, upgraded, or removed.
+
+## Production Dependencies
+
+| Package | Version | Purpose | Planned usage |
+|---|---:|---|---|
+| `next` | `16.3.4` | Full-stack React framework | App Router pages, server components, route handlers, and server-side application logic |
+| `react` | `19.2.8` | UI library | Dashboard components and client interactions |
+| `react-dom` | `19.2.8` | React browser renderer | Rendering the Next.js application |
+
+## Development Dependencies
+
+| Package | Version | Purpose | Planned usage |
+|---|---:|---|---|
+| `@tailwindcss/postcss` | `^4` | Tailwind CSS PostCSS integration | Build-time utility CSS processing |
+| `@types/node` | `^20` | Node.js type declarations | TypeScript support for server-side Next.js code and scripts |
+| `@types/react` | `^19` | React type declarations | TypeScript support for React components |
+| `@types/react-dom` | `^19` | React DOM type declarations | TypeScript support for browser rendering APIs |
+| `eslint` | `^9` | JavaScript and TypeScript linter | Static checks during development and CI |
+| `eslint-config-next` | `16.3.4` | Next.js ESLint rules | Framework-specific linting rules |
+| `tailwindcss` | `^4` | Utility-first CSS framework | Responsive dashboard styling |
+| `typescript` | `^5` | TypeScript compiler | Type-safe application and API code |
+
+## Planned npm Installations
+
+These packages are planned but have not been installed yet. Move each package to an installed section only after it appears in `package.json` and the lockfile.
+
+| Package | Intended purpose | Planned milestone |
+|---|---|---|
+| `@supabase/ssr` | Supabase server/browser session helpers | Database integration |
+| `@supabase/supabase-js` | Supabase PostgreSQL API client | Database integration |
+| `zod` | Runtime schema validation | GDELT and API payload validation |
+| `recharts` | Time-series charts | Dashboard visualization |
+| `react-leaflet` | React bindings for Leaflet maps | Mumbai hotspot map |
+| `leaflet` | Interactive map engine | Mumbai hotspot map |
+| `@types/leaflet` | Leaflet TypeScript declarations | Type-safe map components |
+
+## Installation Rules
+
+- Use npm for dependency changes and commit the resulting `package-lock.json`.
+- Record the package, version, purpose, and installation date or milestone here.
+- Prefer production dependencies only for packages imported by the deployed application.
+- Keep data-science Python packages in `python/requirements.txt`, not this file.
+- Run `npm run lint` and `npm run build` after dependency changes when the project is runnable.
+
+## Audit History
+
+| Date | Action | Result |
+|---|---|---|
+| 2026-09-08 | Initial Next.js scaffold | 364 packages installed; npm reported 0 vulnerabilities |
