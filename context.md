@@ -7,7 +7,7 @@ This file is the source of truth for the project. Changes to architecture, data 
 
 ## 1. Project Goal
 
-Build a real-time public health monitor for early signals of Dengue and Malaria outbreaks in the Mumbai region. The system ingests public news data, extracts epidemiological entities and symptoms from article text, aggregates daily disease mention metrics, detects unusual temporal activity, and presents the results in a responsive web dashboard.
+Build a real-time public health monitor for early signals of configured infectious diseases in the Mumbai region. Dengue and Malaria are the initial examples; the data model, ingestion query, NLP extraction, metrics API, and dashboard must support adding other diseases through configuration without a schema rewrite.
 
 The system is an early-warning research tool, not a clinical diagnostic system. News-derived signals must be labeled as indicative and must not be presented as confirmed case counts.
 
@@ -106,9 +106,9 @@ Each daily request must use:
 - `maxrecords=250` (or a configured lower value)
 - `timespan=1d`
 - `sort=datedesc`
-- A query restricted to the Mumbai region and target diseases, initially encoded as `Mumbai (Dengue OR Malaria)`.
+- A query restricted to the Mumbai region and the configured disease list, initially encoded as `Mumbai (Dengue OR Malaria)`.
 
-The query builder must keep `Mumbai` mandatory and must reject requests that do not include the configured location token. The disease set is initially `Dengue` and `Malaria`; adding diseases requires a documented schema and UI update.
+The query builder must keep `Mumbai` mandatory and must reject requests that do not include the configured location token. The initial `.env` list is `Dengue,Malaria`, but any non-empty comma-separated disease list is valid. Adding diseases requires configuration and test/fixture coverage, not a database schema rewrite.
 
 ### Normalization
 
@@ -165,7 +165,7 @@ create table public.articles (
 create table public.extracted_entities (
   id uuid primary key default gen_random_uuid(),
   article_id uuid not null references public.articles(id) on delete cascade,
-  disease text not null check (disease in ('Dengue', 'Malaria')),
+  disease text not null check (char_length(trim(disease)) > 0),
   entity_type text not null check (entity_type in ('symptom', 'location', 'epidemiological_term')),
   normalized_value text not null,
   source_text text,
@@ -181,7 +181,7 @@ create table public.extracted_entities (
 create table public.daily_metrics (
   metric_date date not null,
   location text not null default 'Mumbai',
-  disease text not null check (disease in ('Dengue', 'Malaria')),
+  disease text not null check (char_length(trim(disease)) > 0),
   article_count integer not null default 0,
   symptom_count integer not null default 0,
   unique_source_count integer not null default 0,

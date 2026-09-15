@@ -1,0 +1,22 @@
+{
+  "articles": [
+    {
+      "url": "https://example.com/mumbai-dengue-signal-1",
+      "title": "Mumbai dengue watch reports fever and fatigue concerns",
+      "snippet": "Local reporting from Mumbai mentions dengue, high fever, headache and fatigue.",
+      "domain": "example.com",
+      "sourcecountry": "India",
+      "language": "English",
+      "seendate": "20260915T080000Z"
+    },
+    {
+      "url": "https://example.com/mumbai-malaria-signal-1",
+      "title": "Mumbai malaria monitoring continues after rainfall",
+      "snippet": "Officials discuss malaria and chills in a public health update.",
+      "domain": "example.com",
+      "sourcecountry": "India",
+      "language": "English",
+      "seendate": "20260915T090000Z"
+    }
+  ]
+}

@@ -11,6 +11,8 @@ This file tracks libraries installed through npm for the Spatiotemporal Epidemic
 | `next` | `16.3.4` | Full-stack React framework | App Router pages, server components, route handlers, and server-side application logic |
 | `react` | `19.2.8` | UI library | Dashboard components and client interactions |
 | `react-dom` | `19.2.8` | React browser renderer | Rendering the Next.js application |
+| `@supabase/supabase-js` | `^2` | Supabase JavaScript client | Server-side database access for ingestion and read APIs |
+| `zod` | `^4` | Runtime schema validation | Environment, GDELT, and API payload validation |
 
 ## Development Dependencies
 
@@ -52,3 +54,4 @@ These packages are planned but have not been installed yet. Move each package to
 | Date | Action | Result |
 |---|---|---|
 | 2026-09-08 | Initial Next.js scaffold | 364 packages installed; npm reported 0 vulnerabilities |
+| 2026-09-15 | Backend foundation dependencies | `@supabase/supabase-js` and `zod` installed; npm reported 0 vulnerabilities |

@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 const sourceLines = [
   "[08:42:11] GDELT feed synchronized",
   "[08:42:13] 128 article records indexed",
-  "[08:42:14] Dengue volume crossed baseline",
+  "[08:42:14] Configured disease volume crossed baseline",
   "[08:42:14] Signal confidence: MODERATE",
   "[08:42:15] Awaiting analyst review...",
 ];

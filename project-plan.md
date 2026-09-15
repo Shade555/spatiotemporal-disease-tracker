@@ -2,7 +2,7 @@
 
 ## 1. Mission
 
-Build a research-grade web application that detects early news-derived signals of Dengue and Malaria activity in Mumbai. The application will fetch GDELT articles, extract epidemiological terms and symptoms, aggregate daily metrics, flag unusual activity, and present the evidence in a public-health dashboard.
+Build a research-grade web application that detects early news-derived signals for configured infectious diseases in Mumbai. Dengue and Malaria are the initial examples, but the application will fetch GDELT articles, extract epidemiological terms and symptoms, aggregate daily metrics, flag unusual activity, and present the evidence in a public-health dashboard for any configured disease list.
 
 This is an early-warning research system. It does not report confirmed case counts, diagnose patients, or replace official public-health surveillance.
 
@@ -69,7 +69,7 @@ These must be agreed before parallel implementation begins.
 
 ### Disease values
 
-The initial allowed values are exactly `Dengue` and `Malaria`. Do not use alternate spellings in database rows or API responses.
+Disease values are non-empty configured strings. The initial examples are `Dengue` and `Malaria`; preserve the configured spelling in database rows and API responses.
 
 ### Location
 
@@ -218,7 +218,7 @@ Exit criteria:
 
 - Dashboard works with mocked data before the live database is connected.
 - Dashboard works with live API responses after integration.
-- A user can filter Dengue/Malaria and inspect the evidence behind a signal.
+- A user can filter any configured disease and inspect the evidence behind a signal.
 - No chart or map claims that news volume equals confirmed cases.
 
 ### Phase 4: Automation and hardening, Days 13-15
@@ -368,7 +368,7 @@ Manual dashboard smoke test
 | Forecasting leaks future information | Use time-based splits and rolling features only | Member 2 |
 | Frontend and API drift | Review the shared response shape before merging | Member 3 + integration owner |
 | Secrets reach Git | `.env` ignored, `.env.example` only has names, review logs | Member 1 |
-| Scope expands beyond a semester | Freeze Dengue, Malaria, Mumbai, and news signals for v1 | All |
+| Scope expands beyond a semester | Freeze Mumbai and news signals for v1, while keeping disease names configuration-driven | All |
 
 ## 9. Version 1 Definition of Done
 
@@ -377,7 +377,7 @@ The project is ready for demonstration when:
 - A fresh clone can install dependencies and run the Next.js app.
 - A documented fixture can be ingested safely and repeatedly.
 - Supabase stores articles, entities, daily metrics, and pipeline audit records.
-- Dashboard users can filter and inspect Dengue/Malaria news signals for Mumbai.
+- Dashboard users can filter and inspect configured disease news signals for Mumbai.
 - The chart displays volume, baseline, and anomaly evidence.
 - The map handles available location data without inventing coordinates.
 - Python notebooks reproduce the extraction and anomaly methodology.

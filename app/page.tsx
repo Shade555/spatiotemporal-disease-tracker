@@ -22,7 +22,7 @@ export default function Home() {
                 Mumbai signal intelligence, online.
               </h1>
               <p className="mt-8 max-w-xl text-2xl leading-tight text-[#d2e7d8] sm:text-3xl">
-                A live research console for detecting unusual Dengue and Malaria news activity before it becomes a headline in the hospital reports.
+                A live research console for detecting unusual configured disease signals before they become a headline in hospital reports.
               </p>
               <Link className="pixel-button mt-10 min-h-14 bg-[#f97316] px-6 text-[#050807]" href="/dashboard">
                 [ ENTER DASHBOARD ]

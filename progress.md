@@ -1,6 +1,6 @@
 # Development Progress
 
-Last updated: 2026-09-08
+Last updated: 2026-09-15
 
 ## Current State
 
@@ -27,6 +27,12 @@ Last updated: 2026-09-08
 - Made each virus an accessible clickable target; clicking it switches to its color-specific second atlas row and plays a downward falling sequence before resetting to idle.
 - Fixed the red virus hit animation override by matching its selector specificity with the blue and yellow hit states.
 - No Python environment, Supabase migration, or CI workflow exists yet.
+- Backend foundation started: Supabase client dependency, Zod environment validation, shared TypeScript contracts, and initial Supabase migration added.
+- Backend vertical slice implemented: health, protected fixture/live ingestion, metrics, and paginated articles routes.
+- GDELT query construction, response normalization, deterministic entity extraction, and daily metric aggregation added.
+- Dashboard now fetches metrics and articles from the API with disease filtering, loading/error/empty states, and live evidence cards.
+- Disease handling generalized from a fixed Dengue/Malaria union to any non-empty configured disease list, with the initial `.env` values retained as Dengue and Malaria.
+- Added a follow-up Supabase migration to remove fixed disease checks for projects that already applied the first migration.
 
 ## Implemented This Session
 
@@ -40,6 +46,7 @@ Last updated: 2026-09-08
 - Confirmed the repository has an `origin` remote pointing to `Shade555/spatiotemporal-disease-tracker` on `main`.
 - Pushed the initial repository structure as commit `06d768f`.
 - Verified the landing-to-dashboard flow in a browser at `http://localhost:3000`.
+- Installed `@supabase/supabase-js` and `zod`; npm reported zero vulnerabilities.
 
 ## Bugs and Blockers
 
@@ -48,17 +55,20 @@ Last updated: 2026-09-08
 - Asset integration build command was skipped; editor diagnostics report no errors in the new Earth, sprite, or global CSS files.
 - The production build emits a non-blocking Turbopack workspace-root warning because npm detects a lockfile in the parent user directory.
 - Supabase project URL and keys are not configured.
+- The initial migration has not yet been applied to a Supabase project.
 - GDELT response fixtures and production API behavior still need to be verified.
+- Local route smoke testing against Supabase was not run because the development-server tool call was skipped.
 - The choice between GitHub Actions and Vercel Cron is still open; select one when deployment is initialized.
+- Existing Supabase projects must apply `202609150002_generalize_disease_values.sql` before ingesting additional diseases.
 
 ## Next Steps
 
-1. Assign the three named team members to the workstreams in `project-plan.md` and lock the shared contracts.
-2. Install and record Supabase, Zod, Recharts, React-Leaflet, and Leaflet packages as their implementation milestones begin.
-3. Create the initial Supabase migration, indexes, RLS policies, and local seed data.
-4. Implement and test the GDELT client, query guard, response normalization, and protected `/api/ingest` route.
-5. Implement the Python fixture, rule-based NLP, rolling anomaly baseline, and first notebook.
-6. Replace dashboard mock values with the metrics/articles APIs against the shared response contract.
+1. Apply both Supabase migrations in order and verify `/api/health` returns database `ok`.
+2. Run `POST /api/ingest?source=fixture` with the bearer cron secret and verify rows are inserted idempotently.
+3. Verify `/api/metrics` and `/api/articles`, then inspect the live dashboard states.
+4. Move anomaly scoring from the initial null baseline to the seven-day rolling implementation.
+5. Set up the Python fixture, rule-based NLP, rolling anomaly baseline, and first notebook.
+6. Add Recharts/Leaflet when the live metrics and coordinate contracts are ready.
 7. Add daily automation, integration tests, and end-to-end smoke validation.
 
 ## Session Handoff Notes
@@ -74,3 +84,5 @@ The frontend baseline is ready for API integration: `/` is the retro terminal en
 The motion baseline is implemented in shared CSS plus `components/ui/MatrixRain.tsx` and `components/ui/TelemetryStream.tsx`. Keep effects stepped and lightweight as interactive data modules are added.
 
 Landing artwork is implemented with `components/ui/RetroEarth.tsx`, `components/ui/VirusSprites.tsx`, `public/earth.png`, and `public/virus_sprites.png`. Editor diagnostics pass after the latest positioning change; the requested lint/build command was skipped. The Earth sheet is measured as 456x547 and treated as a 5x6 atlas; the virus sheet is measured as 301x830 and uses three 7-frame idle rows plus second-row hit animations.
+
+Backend setup now includes the first vertical slice. The next checkpoint is external verification: apply the migration, call health, run fixture ingestion, and confirm the dashboard reads persisted data.
