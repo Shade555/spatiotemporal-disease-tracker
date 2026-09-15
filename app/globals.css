@@ -289,6 +289,27 @@ a {
   box-shadow: 0 0 0 var(--terminal-black);
 }
 
+.chart-mode-group {
+  display: inline-flex;
+  border: 2px solid var(--terminal-green);
+  background: var(--terminal-black);
+}
+
+.chart-mode-button {
+  min-width: 3.5rem;
+  padding: 0.35rem 0.5rem;
+  border-right: 2px solid var(--terminal-green);
+  color: var(--terminal-green);
+  font-family: var(--font-terminal), monospace;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.chart-mode-button:last-child { border-right: 0; }
+.chart-mode-button:hover,
+.chart-mode-button:focus-visible { background: var(--terminal-purple); color: var(--terminal-black); outline: none; }
+.chart-mode-active { background: var(--terminal-green); color: var(--terminal-black); }
+
 .glitch-title {
   position: relative;
   isolation: isolate;

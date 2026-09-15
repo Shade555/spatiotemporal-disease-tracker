@@ -227,6 +227,8 @@ anomaly_score = (article_count - rolling_mean) / rolling_stddev
 
 When standard deviation is zero, leave `anomaly_score` null and mark `is_anomaly` false rather than emitting infinity. The default minimum history is three prior observations and the default alert threshold is a z-score of 2. The UI must display the date, disease, observed volume, baseline, score, and an explicit non-clinical warning.
 
+The dashboard supports 7, 14, and 30-day windows and line, bar, and area views. Map points are shown only when a recognized Mumbai locality appears in article text; missing coordinates remain unplotted.
+
 ## 7. Security, Reliability, and Ethics
 
 - Never commit Supabase keys, cron secrets, or raw credentials.

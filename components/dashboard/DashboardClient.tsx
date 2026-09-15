@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { initialDiseases, type DailyMetric, type Disease } from "@/lib/types";
 import { TelemetryStream } from "@/components/ui/TelemetryStream";
-import { SignalChart } from "@/components/charts/SignalChart";
+import { SignalChart, type ChartMode } from "@/components/charts/SignalChart";
 import { MumbaiHotspotMap } from "@/components/maps/MumbaiHotspotMap";
 
 type Article = {
@@ -14,6 +14,9 @@ type Article = {
   source_domain: string | null;
   snippet: string | null;
   extracted_entities?: Array<{ normalized_value: string; entity_type: string }>;
+  latitude: number | null;
+  longitude: number | null;
+  locality: string | null;
 };
 
 type ApiState = "loading" | "ready" | "error";
@@ -29,10 +32,14 @@ export function DashboardClient() {
   const [allMetrics, setAllMetrics] = useState<DailyMetric[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [state, setState] = useState<ApiState>("loading");
+  const [days, setDays] = useState(7);
+  const [chartMode, setChartMode] = useState<ChartMode>("line");
+  const [lastRefresh, setLastRefresh] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    const params = new URLSearchParams({ from: dateDaysAgo(6), to: dateDaysAgo(0) });
+    const params = new URLSearchParams({ from: dateDaysAgo(days - 1), to: dateDaysAgo(0) });
 
     async function loadDashboard() {
       setState("loading");
@@ -47,6 +54,7 @@ export function DashboardClient() {
         setAllMetrics(metricsPayload.data);
         setArticles(articlesPayload.data);
         setState("ready");
+        setLastRefresh(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
       } catch (error) {
         if ((error as Error).name !== "AbortError") setState("error");
       }
@@ -54,7 +62,7 @@ export function DashboardClient() {
 
     void loadDashboard();
     return () => controller.abort();
-  }, []);
+  }, [days, reloadToken]);
 
   const availableDiseases = [...new Set([...initialDiseases, ...allMetrics.map((metric) => metric.disease)])];
   const diseases: Array<"All" | Disease> = ["All", ...availableDiseases];
@@ -63,6 +71,7 @@ export function DashboardClient() {
   const activeSignals = metrics.filter((metric) => metric.isAnomaly).length;
   const sourceCount = metrics.reduce((total, metric) => total + metric.uniqueSourceCount, 0);
   const alerts = metrics.filter((metric) => metric.isAnomaly).sort((left, right) => right.metricDate.localeCompare(left.metricDate));
+  const mapPoints = articles.flatMap((article) => article.latitude !== null && article.longitude !== null ? [{ id: article.id, latitude: article.latitude, longitude: article.longitude, label: article.locality ?? "Mumbai", disease: article.extracted_entities?.find((entity) => entity.entity_type === "epidemiological_term")?.normalized_value ?? "signal" }] : []);
 
   return (
     <>
@@ -73,6 +82,13 @@ export function DashboardClient() {
             {option}
           </button>
         ))}
+      </section>
+
+      <section className="mb-6 flex flex-wrap items-center gap-3 text-lg text-[#8da395]">
+        <span className="font-(family-name:--font-pixel-display) text-[0.55rem]">WINDOW:</span>
+        {[7, 14, 30].map((option) => <button className={`pixel-button px-3 py-2 ${days === option ? "bg-[#a855f7] text-[#050807]" : "text-[#a855f7]"}`} key={option} onClick={() => setDays(option)} type="button">{option}D</button>)}
+        <span className="ml-auto">SYNC: {lastRefresh ?? "--:--"}</span>
+        <button className="pixel-button px-3 py-2 text-[#f97316]" onClick={() => setReloadToken((token) => token + 1)} type="button">[ REFRESH ]</button>
       </section>
 
       {state === "loading" && <div className="pixel-window bg-[#050807] p-6 text-xl text-[#f97316]">&gt; CONNECTING TO SURVEILLANCE DATA<span className="terminal-cursor" /></div>}
@@ -90,9 +106,9 @@ export function DashboardClient() {
             <article className="pixel-window bg-[#050807] p-5">
               <div className="mb-6 flex items-center justify-between border-b-2 border-[#22c55e] pb-3">
                 <h2 className="font-(family-name:--font-pixel-display) text-[0.65rem] text-[#22c55e]">SIGNAL VOLUME / 07 DAY WINDOW</h2>
-                <span className="text-xl text-[#f97316]">● LIVE</span>
+                <div className="flex items-center gap-2"><div className="chart-mode-group" aria-label="Chart mode" role="group">{(["line", "bar", "area"] as ChartMode[]).map((mode) => <button aria-pressed={chartMode === mode} className={`chart-mode-button ${chartMode === mode ? "chart-mode-active" : ""}`} key={mode} onClick={() => setChartMode(mode)} type="button">{mode.toUpperCase()}</button>)}</div><span className="text-xl text-[#f97316]">● LIVE</span></div>
               </div>
-              {metrics.length === 0 ? <EmptyState label="NO METRICS IN SELECTED WINDOW" /> : <SignalChart metrics={metrics} />}
+              {metrics.length === 0 ? <EmptyState label="NO METRICS IN SELECTED WINDOW" /> : <SignalChart metrics={metrics} mode={chartMode} />}
               <div className="mt-4 flex justify-between text-lg text-[#8da395]"><span>{metrics[0]?.metricDate ?? "-- SEP"}</span><span>{metrics.at(-1)?.metricDate ?? "-- SEP"}</span></div>
             </article>
 
@@ -113,7 +129,7 @@ export function DashboardClient() {
             </article>
             <article className="pixel-window focus-window bg-[#172235] p-5" tabIndex={0}>
               <h2 className="mb-5 font-(family-name:--font-pixel-display) text-[0.65rem] text-[#22c55e]">REGION MAP // MUMBAI</h2>
-              <MumbaiHotspotMap />
+              <MumbaiHotspotMap points={mapPoints} />
             </article>
           </section>
         </>

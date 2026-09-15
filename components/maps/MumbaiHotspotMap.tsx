@@ -14,7 +14,7 @@ export function MumbaiHotspotMap({ points = [] }: { points?: MapPoint[] }) {
       <div className="map-grid" aria-hidden="true" />
       {points.length === 0 ? (
         <div className="relative z-10 flex min-h-48 items-center justify-center text-center text-xl text-[#8da395]">
-          MAP MODULE STANDBY<br />Awaiting validated coordinate feed
+          MAP MODULE STANDBY<br />No validated locality coordinates in current articles
         </div>
       ) : (
         <div className="relative z-10 h-48">

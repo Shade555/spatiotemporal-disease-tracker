@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
 import sampleResponse from "@/fixtures/gdelt/sample-response.json";
 import { fetchGdeltArticles, GdeltRequestError, normalizeGdeltArticle } from "@/lib/gdelt";
 import { getConfiguredDiseases, getServerEnv } from "@/lib/env";
@@ -121,6 +122,12 @@ export async function POST(request: NextRequest) {
     if (error instanceof GdeltRequestError) {
       const retryAfter = error.retryAfter ?? "60";
       return NextResponse.json({ status: "failed", message: "GDELT is temporarily rate-limiting requests.", retryAfterSeconds: retryAfter }, { status: error.status === 429 ? 429 : 502, headers: { "Retry-After": retryAfter } });
+    }
+    if (error instanceof Error && error.name === "AbortError") {
+      return NextResponse.json({ status: "failed", message: "GDELT request timed out." }, { status: 504 });
+    }
+    if (error instanceof SyntaxError || error instanceof ZodError) {
+      return NextResponse.json({ status: "failed", message: "GDELT returned an invalid payload." }, { status: 502 });
     }
     return NextResponse.json({ status: "failed", message: "Ingestion failed." }, { status: 500 });
   }

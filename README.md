@@ -1,36 +1,577 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MUMBAI // SIGNAL WATCH
 
-## Getting Started
+```text
+  __  __ _   _ __  __ ____    _    ___
++ |  \/  | | | |  \/  | __ )  / \  |_ _|
+  | |\/| | | | | |\/| |  _ \ / _ \  | |
+  | |  | | |_| | |  | | |_) / ___ \ | |
+  |_|  |_|\___/|_|  |_|____/_/   \_\___|
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+  SPATIOTEMPORAL EPIDEMIC TRACKING + EARLY WARNING SYSTEM
+  REGION: MUMBAI        SIGNAL TYPE: NEWS-DERIVED        STATUS: RESEARCH BUILD
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> A retro-tech public-health monitor for detecting unusual infectious-disease news activity in Mumbai.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This project is a Sem VII Data Science Honours research system. It collects public news metadata from the GDELT DOC 2.0 API, extracts configurable disease and symptom signals, aggregates daily activity, detects unusual volume using a transparent rolling baseline, and presents the evidence through a CRT-style dashboard.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Important research boundary:** this system detects news signals. It does not produce confirmed case counts, diagnose patients, or replace official epidemiological surveillance.
 
-## Learn More
+## Current Status
 
-To learn more about Next.js, take a look at the following resources:
+```text
+[ONLINE] Next.js application
+[ONLINE] Supabase persistence and fixture ingestion
+[ONLINE] Configurable disease extraction
+[ONLINE] Python NLP and anomaly-analysis layer
+[ONLINE] Dashboard filters, chart modes, alert cards
+[READY ] Coordinate-aware Mumbai map module
+[READY ] GitHub Actions workflow
+[DEFER ] Live GDELT testing while upstream rate limits requests
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The fixture-to-dashboard path has been verified:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+GDELT fixture
+    |
+    v
+POST /api/ingest?source=fixture
+    |
+    v
+Supabase: articles -> extracted_entities -> daily_metrics -> pipeline_runs
+    |
+    +--> GET /api/metrics
+    +--> GET /api/articles
+    |
+    v
+Retro surveillance dashboard
+```
 
-## Deploy on Vercel
+## What The System Does
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Builds a GDELT query that always includes `Mumbai` and the configured disease list.
+2. Fetches a daily article batch or loads the committed fixture during development.
+3. Validates the response and ignores malformed articles safely.
+4. Normalizes URLs, titles, snippets, domains, timestamps, and raw payloads.
+5. Uses the URL as the article idempotency key.
+6. Extracts disease, symptom, location, and epidemiological entities.
+7. Upserts articles and entities into Supabase.
+8. Aggregates daily article volume, symptom count, and source count by disease.
+9. Calculates a prior-only rolling baseline and anomaly score.
+10. Stores pipeline success/failure audit information.
+11. Serves metrics and evidence through typed API routes.
+12. Displays filters, KPI cards, chart modes, alert cards, article evidence, and locality-derived map points.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Visual Language
+
+The interface deliberately behaves like a public-health command terminal:
+
+- CRT scanlines, phosphor flicker, boot slit, and chromatic startup shake
+- Pixel display typography with terminal body text
+- Hard-edged windows and mechanical button states
+- Animated matrix background
+- Pixel-art Earth sprite sheet
+- Interactive red, blue, and yellow virus sprites
+- Click-to-hit virus pose animation
+- Typewriter telemetry stream
+- Stepped line, bar, and area chart modes
+- Responsive mobile and desktop layouts
+
+The styling is implemented primarily in [app/globals.css](app/globals.css), with reusable UI modules under [components/ui](components/ui).
+
+## Technology Stack
+
+### Application
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16.3.4 App Router |
+| Language | TypeScript |
+| UI | React 19 |
+| Styling | Tailwind CSS 4 + custom CRT CSS |
+| Fonts | `Press Start 2P` and `VT323` through `next/font` |
+| Charts | Recharts |
+| Map foundation | Leaflet, React-Leaflet, Leaflet types |
+| Validation | Zod |
+| Database client | `@supabase/supabase-js` |
+
+### Data source and storage
+
+- GDELT DOC 2.0 Article List API
+- Supabase PostgreSQL
+- Supabase Row Level Security for public read policies
+- Server-only service-role access for ingestion writes
+- GitHub Actions for scheduled ingestion
+
+### Data science
+
+- Python 3.12+
+- pandas
+- NumPy
+- JupyterLab
+- Matplotlib
+- Rule-based NLP
+- Rolling z-score anomaly detection
+
+All installed npm packages are tracked in [library.md](library.md). Python dependencies are tracked in [python/requirements.txt](python/requirements.txt).
+
+## Repository Layout
+
+```text
+spatiotemporal-disease-tracker/
+|-- app/
+|   |-- api/
+|   |   |-- articles/route.ts       # Paginated article evidence API
+|   |   |-- health/route.ts         # Configuration + Supabase health check
+|   |   |-- ingest/route.ts         # Protected fixture/live ingestion
+|   |   `-- metrics/route.ts        # Daily metrics API
+|   |-- dashboard/page.tsx          # Dashboard shell
+|   |-- globals.css                 # CRT design system and animations
+|   |-- layout.tsx                  # Metadata and fonts
+|   `-- page.tsx                    # Landing terminal
+|-- components/
+|   |-- charts/SignalChart.tsx      # Recharts line/bar/area views
+|   |-- dashboard/DashboardClient.tsx
+|   |-- maps/MumbaiHotspotMap.tsx   # Coordinate-aware map module
+|   `-- ui/                         # Matrix, telemetry, sprite modules
+|-- fixtures/gdelt/
+|   `-- sample-response.json        # Deterministic development input
+|-- lib/
+|   |-- env.ts                      # Server environment validation
+|   |-- gdelt.ts                    # Query, fetch, timeout, normalization
+|   |-- geo.ts                      # Recognized Mumbai locality coordinates
+|   |-- metrics.ts                  # Aggregation + anomaly calculations
+|   |-- supabase.ts                 # Server-only Supabase client
+|   |-- types.ts                    # Shared TypeScript contracts
+|   `-- validation.ts               # Zod + rule-based extraction
+|-- python/
+|   |-- notebooks/01_data_exploration.ipynb
+|   |-- src/data/gdelt.py
+|   |-- src/modeling/anomaly.py
+|   |-- src/nlp/extractor.py
+|   `-- tests/test_data_science.py
+|-- public/
+|   |-- earth.png
+|   `-- virus_sprites.png
+|-- supabase/migrations/
+|   |-- 202609150001_initial_surveillance_schema.sql
+|   `-- 202609150002_generalize_disease_values.sql
+|-- .github/workflows/daily-ingestion.yml
+|-- context.md                     # Authoritative architecture contract
+|-- project-plan.md                # Team execution plan
+|-- progress.md                    # Cross-session handoff state
+|-- library.md                     # npm dependency ledger
+`-- package.json
+```
+
+## Prerequisites
+
+- Node.js compatible with the current Next.js release
+- npm
+- Python 3.12 or newer recommended
+- A Supabase project
+- A GitHub repository if scheduled ingestion is required
+
+## Local Setup
+
+### 1. Install JavaScript dependencies
+
+```powershell
+npm install
+```
+
+### 2. Install Python dependencies
+
+```powershell
+python -m pip install -r python/requirements.txt
+```
+
+### 3. Create local environment variables
+
+Copy [.env.example](.env.example) to `.env` and fill in the values:
+
+```dotenv
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
+
+CRON_SECRET=your-long-random-secret
+
+GDELT_API_URL=https://api.gdeltproject.org/api/v2/doc/doc
+GDELT_QUERY_LOCATION=Mumbai
+GDELT_QUERY_DISEASES=Dengue,Malaria
+```
+
+The disease list is configuration-driven. For example:
+
+```dotenv
+GDELT_QUERY_DISEASES=Dengue,Malaria,Chikungunya,Typhoid
+```
+
+Any non-empty comma-separated disease list is accepted. The database does not require a schema change for new disease names.
+
+### 4. Apply Supabase migrations
+
+In Supabase **SQL Editor**, run these files in order:
+
+1. [202609150001_initial_surveillance_schema.sql](supabase/migrations/202609150001_initial_surveillance_schema.sql)
+2. [202609150002_generalize_disease_values.sql](supabase/migrations/202609150002_generalize_disease_values.sql)
+
+The first migration creates the tables, indexes, RLS, and timestamp triggers. The second migration removes the original fixed disease constraints for projects that already applied the first migration.
+
+### 5. Start the app
+
+```powershell
+npm run dev
+```
+
+Open:
+
+- Landing terminal: <http://localhost:3000>
+- Dashboard: <http://localhost:3000/dashboard>
+- Health API: <http://localhost:3000/api/health>
+
+If port `3000` is occupied, Next.js may use another port. Use the URL printed in the terminal.
+
+## Runtime Verification
+
+### Health check
+
+```powershell
+Invoke-WebRequest -UseBasicParsing `
+  -Uri "http://localhost:3000/api/health"
+```
+
+Expected result:
+
+```json
+{"status":"ok","service":"api","database":"ok"}
+```
+
+### Fixture ingestion
+
+Use a second PowerShell terminal while the dev server is running:
+
+```powershell
+$cronSecret = (Get-Content .env |
+  Where-Object { $_ -match '^CRON_SECRET=' } |
+  Select-Object -First 1) -replace '^CRON_SECRET=', ''
+
+$headers = @{ Authorization = "Bearer $cronSecret" }
+
+Invoke-WebRequest -UseBasicParsing `
+  -Uri "http://localhost:3000/api/ingest?source=fixture" `
+  -Method POST `
+  -Headers $headers
+```
+
+Expected first-run behavior:
+
+```json
+{
+  "status": "succeeded",
+  "source": "fixture",
+  "articlesSeen": 2,
+  "articlesInserted": 2,
+  "entitiesExtracted": 11
+}
+```
+
+Run the same command again. The second run should remain successful but report:
+
+```json
+"articlesInserted": 0
+```
+
+That confirms URL-based idempotency.
+
+### Live GDELT ingestion
+
+Omit `source=fixture`:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing `
+  -Uri "http://localhost:3000/api/ingest" `
+  -Method POST `
+  -Headers $headers
+```
+
+The route calls GDELT with:
+
+```text
+Mumbai (Dengue OR Malaria)
+```
+
+Live GDELT may return HTTP `429 Too Many Requests`. The route exposes this as a structured response with retry metadata. Avoid repeated retries; use the fixture path while the upstream cooldown is active.
+
+## API Reference
+
+### `GET /api/health`
+
+Checks validated server configuration and reads `pipeline_runs` through Supabase.
+
+### `POST /api/ingest`
+
+Protected route. Requires:
+
+```http
+Authorization: Bearer <CRON_SECRET>
+```
+
+Optional development mode:
+
+```text
+POST /api/ingest?source=fixture
+```
+
+Successful ingestion:
+
+```json
+{
+  "status": "succeeded",
+  "source": "fixture|gdelt",
+  "query": "Mumbai (Dengue OR Malaria)",
+  "articlesSeen": 2,
+  "articlesInserted": 2,
+  "entitiesExtracted": 11,
+  "startedAt": "2026-09-15T13:53:52.607Z"
+}
+```
+
+### `GET /api/metrics`
+
+Supported query parameters:
+
+```text
+disease=Dengue
+from=2026-09-09
+to=2026-09-15
+location=Mumbai
+```
+
+Returns daily metrics in the frontend contract:
+
+```json
+{
+  "metricDate": "2026-09-15",
+  "location": "Mumbai",
+  "disease": "Dengue",
+  "articleCount": 4,
+  "symptomCount": 3,
+  "uniqueSourceCount": 2,
+  "rollingMean": null,
+  "rollingStddev": null,
+  "anomalyScore": null,
+  "isAnomaly": false,
+  "forecastValue": null
+}
+```
+
+### `GET /api/articles`
+
+Supported query parameters:
+
+```text
+page=1
+pageSize=20
+disease=Dengue
+from=2026-09-09
+to=2026-09-15
+location=Mumbai
+```
+
+Returns article metadata, extracted entities, pagination information, and locality-derived coordinates when a recognized Mumbai locality appears in the article text.
+
+## Database Model
+
+### `articles`
+
+Stores normalized article metadata. `url` is unique and is the ingestion idempotency key.
+
+### `extracted_entities`
+
+Stores normalized disease, symptom, location, and epidemiological terms linked to articles. Duplicate entity rows are prevented by a compound unique constraint.
+
+### `daily_metrics`
+
+Stores one row per `(metric_date, location, disease)`. It contains article volume, symptoms, unique sources, rolling statistics, anomaly score, and forecast placeholder.
+
+### `pipeline_runs`
+
+Audits every ingestion attempt as `running`, `succeeded`, or `failed` with counts and safe error metadata.
+
+## NLP and Anomaly Method
+
+The initial NLP layer is intentionally transparent and reproducible.
+
+### Entity extraction
+
+Text is normalized for case and whitespace. Disease names come from `GDELT_QUERY_DISEASES`. The current symptom vocabulary includes:
+
+```text
+high fever, fever, headache, muscle pain, joint pain,
+rash, nausea, vomiting, chills, fatigue
+```
+
+Nested phrases are deduplicated, so `high fever` does not also emit a duplicate `fever` entity for the same match.
+
+### Rolling anomaly score
+
+For each disease, the current day is compared only with previous observations:
+
+```text
+rolling_mean = mean(previous up to 7 article counts)
+rolling_stddev = population standard deviation(previous counts)
+anomaly_score = (current count - rolling_mean) / rolling_stddev
+```
+
+Rules:
+
+- At least 3 prior observations are required.
+- Anomaly threshold is `score >= 2`.
+- Zero standard deviation produces no anomaly instead of infinity.
+- An anomaly is a news-volume signal, not an outbreak confirmation.
+
+The TypeScript production path and Python research path are designed to use the same semantics.
+
+## Python Data-Science Workflow
+
+Run the tests:
+
+```powershell
+python -m unittest discover -s python\tests -p 'test_*.py' -v
+```
+
+Validate syntax:
+
+```powershell
+python -m py_compile `
+  python\src\nlp\extractor.py `
+  python\src\data\gdelt.py `
+  python\src\modeling\anomaly.py `
+  python\tests\test_data_science.py
+```
+
+Notebook:
+
+```text
+python/notebooks/01_data_exploration.ipynb
+```
+
+The notebook consumes the same committed fixture used by the TypeScript ingestion path. This keeps early research reproducible without depending on live GDELT availability.
+
+## GitHub Actions
+
+The workflow is located at [.github/workflows/daily-ingestion.yml](.github/workflows/daily-ingestion.yml).
+
+It supports:
+
+- Daily scheduled execution at `03:17 UTC`
+- Manual execution through `workflow_dispatch`
+
+Configure these repository secrets under **Settings -> Secrets and variables -> Actions**:
+
+```text
+APP_URL=https://your-deployed-app.example
+CRON_SECRET=your-cron-secret
+```
+
+The workflow calls:
+
+```text
+POST ${APP_URL}/api/ingest
+Authorization: Bearer ${CRON_SECRET}
+```
+
+## Quality Checks
+
+Run the web checks:
+
+```powershell
+npm run lint
+npm run build
+```
+
+Run the Python checks:
+
+```powershell
+python -m unittest discover -s python\tests -p 'test_*.py' -v
+```
+
+Before a milestone is merged, also check:
+
+- `git diff --check`
+- Fixture ingestion succeeds twice
+- Second fixture run reports zero new article inserts
+- API responses contain no secrets
+- Dashboard uses explicit research-signal wording
+- No `.env` file or service-role key is committed
+
+## Security Notes
+
+- `.env*` files are ignored by Git. Never commit local secrets.
+- The Supabase service-role key must only be used server-side.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` is not a substitute for the service-role key in ingestion.
+- Rotate credentials that have been exposed in chat, logs, screenshots, or shell history.
+- Do not print authorization headers or raw Supabase keys while debugging.
+- GDELT rate limits must be respected; scheduled ingestion should run once per day.
+
+## Collaboration Guide
+
+Read these files before changing architecture:
+
+- [context.md](context.md): authoritative system specification
+- [project-plan.md](project-plan.md): three-member work split and delivery phases
+- [progress.md](progress.md): current session handoff
+- [library.md](library.md): npm dependency ledger
+
+Suggested ownership:
+
+```text
+Member 1  Backend, Supabase, GDELT, API routes, automation
+Member 2  Python NLP, anomaly modeling, notebooks, research evaluation
+Member 3  Dashboard, charts, map, responsive states, presentation visuals
+```
+
+Use focused branches and commits:
+
+```text
+feat/backend-ingestion
+feat/python-nlp
+feat/dashboard-controls
+test/api-contracts
+docs/research-methodology
+```
+
+## Known Limitations
+
+- GDELT may throttle live requests with HTTP `429`.
+- The current map plots recognized locality coordinates on a retro grid; a full tile-backed geographic map remains future work.
+- Article volume is a media signal and is affected by reporting bias, duplicate coverage, and source availability.
+- Rule-based NLP can produce false positives and false negatives.
+- ARIMA and other model-based forecasts are research work, not production alerts yet.
+- Historical backfill and multi-day model validation are still required for meaningful forecasting.
+
+## Roadmap
+
+```text
+[DONE]  Scaffold Next.js + Python repository
+[DONE]  Supabase schema and fixture ingestion
+[DONE]  Configurable disease extraction
+[DONE]  Rolling anomaly baseline and alert cards
+[DONE]  Dashboard chart modes and controls
+[DONE]  GitHub Actions workflow scaffold
+[NEXT]  Commit latest dashboard/map/GDELT changes
+[NEXT]  Add API and ingestion integration tests
+[NEXT]  Add real geographic map layer
+[NEXT]  Compare Python and TypeScript anomaly outputs
+[NEXT]  Deploy and enable scheduled ingestion
+[NEXT]  Rotate exposed credentials
+```
+
+## License
+
+This project is released under the MIT License. See [LICENSE](LICENSE).
