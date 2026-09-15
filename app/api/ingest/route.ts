@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import sampleResponse from "@/fixtures/gdelt/sample-response.json";
-import { fetchGdeltArticles, normalizeGdeltArticle } from "@/lib/gdelt";
+import { fetchGdeltArticles, GdeltRequestError, normalizeGdeltArticle } from "@/lib/gdelt";
 import { getConfiguredDiseases, getServerEnv } from "@/lib/env";
-import { calculateDailyMetrics } from "@/lib/metrics";
+import { applyRollingAnomalies, calculateDailyMetrics } from "@/lib/metrics";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { extractEntities, gdeltResponseSchema } from "@/lib/validation";
 
@@ -35,6 +35,12 @@ export async function POST(request: NextRequest) {
     if (run.error) throw run.error;
     runId = run.data.id;
 
+    const sourceUrls = [...new Set(source.map((article) => article.url))];
+    const existingArticles = sourceUrls.length === 0
+      ? { data: [], error: null }
+      : await supabase.from("articles").select("url").in("url", sourceUrls);
+    if (existingArticles.error) throw existingArticles.error;
+    const existingUrls = new Set((existingArticles.data ?? []).map((article) => article.url));
     let articlesInserted = 0;
     let entitiesExtracted = 0;
     for (const article of source) {
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
         raw_payload: article.rawPayload,
       }, { onConflict: "url", ignoreDuplicates: false }).select("id").single();
       if (stored.error) throw stored.error;
-      articlesInserted += 1;
+      if (!existingUrls.has(article.url)) articlesInserted += 1;
 
       const entities = extractEntities(article.title, article.snippet, configuredDiseases).map((entity) => ({
         article_id: stored.data.id,
@@ -68,7 +74,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const metrics = calculateDailyMetrics(source, configuredDiseases);
+    const incomingMetrics = calculateDailyMetrics(source, configuredDiseases);
+    const existingMetrics = await supabase.from("daily_metrics").select("*").eq("location", "Mumbai");
+    if (existingMetrics.error) throw existingMetrics.error;
+    const historicalMetrics = (existingMetrics.data ?? []).map((metric) => ({
+      metricDate: metric.metric_date,
+      location: metric.location,
+      disease: metric.disease,
+      articleCount: metric.article_count,
+      symptomCount: metric.symptom_count,
+      uniqueSourceCount: metric.unique_source_count,
+      rollingMean: metric.rolling_mean,
+      rollingStddev: metric.rolling_stddev,
+      anomalyScore: metric.anomaly_score,
+      isAnomaly: metric.is_anomaly,
+      forecastValue: metric.forecast_value,
+    }));
+    const metrics = applyRollingAnomalies(
+      [...historicalMetrics.filter((historical) => !incomingMetrics.some((incoming) => incoming.metricDate === historical.metricDate && incoming.disease === historical.disease)), ...incomingMetrics],
+    ).filter((metric) => incomingMetrics.some((incoming) => incoming.metricDate === metric.metricDate && incoming.disease === metric.disease));
     for (const metric of metrics) {
       const result = await supabase.from("daily_metrics").upsert({
         metric_date: metric.metricDate,
@@ -93,6 +117,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (runId) {
       await supabase.from("pipeline_runs").update({ status: "failed", completed_at: new Date().toISOString(), error_message: error instanceof Error ? error.message : "Unknown ingestion failure" }).eq("id", runId);
+    }
+    if (error instanceof GdeltRequestError) {
+      const retryAfter = error.retryAfter ?? "60";
+      return NextResponse.json({ status: "failed", message: "GDELT is temporarily rate-limiting requests.", retryAfterSeconds: retryAfter }, { status: error.status === 429 ? 429 : 502, headers: { "Retry-After": retryAfter } });
     }
     return NextResponse.json({ status: "failed", message: "Ingestion failed." }, { status: 500 });
   }

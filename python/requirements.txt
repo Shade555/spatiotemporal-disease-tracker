@@ -1,2 +1,6 @@
-# Python data science dependencies will be pinned during notebook setup.
+pandas==2.3.1
+numpy==2.1.1
+jupyterlab==4.4.7
+matplotlib==3.10.5
+
 # Keep production JavaScript dependencies in package.json and library.md.

@@ -32,3 +32,35 @@ export function calculateDailyMetrics(articles: NormalizedArticle[], configuredD
     } satisfies DailyMetric;
   }).sort((a, b) => a.metricDate.localeCompare(b.metricDate));
 }
+
+export function applyRollingAnomalies(
+  metrics: DailyMetric[],
+  window = 7,
+  minHistory = 3,
+  threshold = 2,
+): DailyMetric[] {
+  return metrics.map((metric) => {
+    const history = metrics
+      .filter((candidate) => candidate.disease === metric.disease && candidate.metricDate < metric.metricDate)
+      .sort((left, right) => right.metricDate.localeCompare(left.metricDate))
+      .slice(0, window)
+      .map((candidate) => candidate.articleCount);
+
+    if (history.length < minHistory) {
+      return { ...metric, rollingMean: null, rollingStddev: null, anomalyScore: null, isAnomaly: false };
+    }
+
+    const rollingMean = history.reduce((sum, value) => sum + value, 0) / history.length;
+    const variance = history.reduce((sum, value) => sum + ((value - rollingMean) ** 2), 0) / history.length;
+    const rollingStddev = Math.sqrt(variance);
+    const anomalyScore = rollingStddev > 0 ? (metric.articleCount - rollingMean) / rollingStddev : null;
+
+    return {
+      ...metric,
+      rollingMean,
+      rollingStddev,
+      anomalyScore,
+      isAnomaly: anomalyScore !== null && anomalyScore >= threshold,
+    };
+  });
+}

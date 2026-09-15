@@ -4,6 +4,13 @@ import { location, type NormalizedArticle } from "@/lib/types";
 
 const requestTimeoutMs = 15_000;
 
+export class GdeltRequestError extends Error {
+  constructor(public readonly status: number, public readonly retryAfter: string | null) {
+    super(`GDELT request failed with status ${status}.`);
+    this.name = "GdeltRequestError";
+  }
+}
+
 export function buildGdeltQuery(): string {
   const env = getServerEnv();
   const diseases = getConfiguredDiseases();
@@ -66,7 +73,7 @@ export async function fetchGdeltArticles(): Promise<{ query: string; articles: N
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
   try {
     const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
-    if (!response.ok) throw new Error(`GDELT request failed with status ${response.status}.`);
+    if (!response.ok) throw new GdeltRequestError(response.status, response.headers.get("retry-after"));
     const parsed = gdeltResponseSchema.parse(await response.json());
     return { query, articles: parsed.articles.map((article) => normalizeGdeltArticle(article, query)).filter((article): article is NormalizedArticle => article !== null) };
   } finally {
