@@ -107,6 +107,8 @@ The metrics API should return objects equivalent to:
 
 Use terms such as `news signal`, `unusual activity`, and `article volume`. Never label a news-derived anomaly as a confirmed outbreak.
 
+The production baseline uses the previous seven days only, requires three prior observations, uses population standard deviation, and alerts at z-score `>= 2`. Zero variance produces no alert.
+
 ### Dependency tracking
 
 Every npm installation must update `library.md`. Every Python package must be pinned or documented in `python/requirements.txt`.
@@ -225,7 +227,7 @@ Exit criteria:
 
 Owner: Member 1; all members test their surfaces.
 
-- Add the chosen daily GitHub Actions workflow or Vercel Cron configuration.
+- Add the chosen daily GitHub Actions workflow or Vercel Cron configuration. The repository now includes a GitHub Actions workflow; configure `APP_URL` and `CRON_SECRET` repository secrets before enabling it.
 - Protect secrets through repository/deployment secret settings.
 - Add retry and timeout behavior for GDELT.
 - Prevent concurrent ingestion runs or document the locking strategy.

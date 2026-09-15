@@ -33,6 +33,15 @@ Last updated: 2026-09-15
 - Dashboard now fetches metrics and articles from the API with disease filtering, loading/error/empty states, and live evidence cards.
 - Disease handling generalized from a fixed Dengue/Malaria union to any non-empty configured disease list, with the initial `.env` values retained as Dengue and Malaria.
 - Added a follow-up Supabase migration to remove fixed disease checks for projects that already applied the first migration.
+- Python data-science layer added: configurable NLP extraction, GDELT fixture loading, daily pandas aggregation, and leakage-safe rolling anomaly scoring.
+- Added `python/notebooks/01_data_exploration.ipynb` and four focused Python tests.
+- TypeScript ingestion now computes a prior-only seven-day rolling baseline, population standard deviation, z-score, and anomaly flag with a three-observation minimum and threshold 2.
+- Dashboard alert cards now render actual anomaly metrics and explicitly label them as news signals.
+- Repeated ingestion now reports only genuinely new article URLs in `articlesInserted`; upserts remain idempotent.
+- Live GDELT ingestion is available by calling `/api/ingest` without `source=fixture`; fixture mode remains the deterministic test path.
+- Live GDELT testing reached the upstream service, which returned `429 Too Many Requests`; ingestion now exposes that as an actionable `429` with `Retry-After` metadata instead of a generic `500`.
+- Replaced the dashboard bar mock with a responsive Recharts signal chart and added a coordinate-safe Mumbai hotspot map module.
+- Added `.github/workflows/daily-ingestion.yml` with scheduled and manual ingestion triggers.
 
 ## Implemented This Session
 
@@ -50,15 +59,17 @@ Last updated: 2026-09-15
 
 ## Bugs and Blockers
 
-- No known application code defects; dashboard values are currently mock data and the map is a standby module.
+- No known application code defects; the map is still a standby module.
 - Browser animation smoke test was not rerun after this motion pass; static validation is green.
 - Asset integration build command was skipped; editor diagnostics report no errors in the new Earth, sprite, or global CSS files.
 - The production build emits a non-blocking Turbopack workspace-root warning because npm detects a lockfile in the parent user directory.
 - Supabase project URL and keys are not configured.
 - The initial migration has not yet been applied to a Supabase project.
-- GDELT response fixtures and production API behavior still need to be verified.
+- GDELT response fixtures have been verified; the live external GDELT response still needs a controlled production-path check.
 - Local route smoke testing against Supabase was not run because the development-server tool call was skipped.
+- Python data-science tests now pass with 4/4 cases; source compilation and notebook JSON validation also pass.
 - The choice between GitHub Actions and Vercel Cron is still open; select one when deployment is initialized.
+- GitHub Actions automation requires repository secrets `APP_URL` and `CRON_SECRET` before enabling scheduled runs.
 - Existing Supabase projects must apply `202609150002_generalize_disease_values.sql` before ingesting additional diseases.
 
 ## Next Steps
@@ -66,8 +77,8 @@ Last updated: 2026-09-15
 1. Apply both Supabase migrations in order and verify `/api/health` returns database `ok`.
 2. Run `POST /api/ingest?source=fixture` with the bearer cron secret and verify rows are inserted idempotently.
 3. Verify `/api/metrics` and `/api/articles`, then inspect the live dashboard states.
-4. Move anomaly scoring from the initial null baseline to the seven-day rolling implementation.
-5. Set up the Python fixture, rule-based NLP, rolling anomaly baseline, and first notebook.
+4. Compare TypeScript and Python anomaly outputs on a shared multi-day fixture.
+5. Add Python model comparison notebooks after enough historical data is available.
 6. Add Recharts/Leaflet when the live metrics and coordinate contracts are ready.
 7. Add daily automation, integration tests, and end-to-end smoke validation.
 

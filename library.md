@@ -1,6 +1,6 @@
 # Installed Library Ledger
 
-Last updated: 2026-09-08
+Last updated: 2026-09-15
 
 This file tracks libraries installed through npm for the Spatiotemporal Epidemic Tracking and Early Warning System. Keep it synchronized with `package.json` whenever dependencies are added, upgraded, or removed.
 
@@ -13,6 +13,10 @@ This file tracks libraries installed through npm for the Spatiotemporal Epidemic
 | `react-dom` | `19.2.8` | React browser renderer | Rendering the Next.js application |
 | `@supabase/supabase-js` | `^2` | Supabase JavaScript client | Server-side database access for ingestion and read APIs |
 | `zod` | `^4` | Runtime schema validation | Environment, GDELT, and API payload validation |
+| `recharts` | `^3.10.1` | React charting library | Responsive signal-volume and anomaly charts |
+| `leaflet` | `^1.9.4` | Interactive map engine | Future geographic hotspot map layers |
+| `react-leaflet` | `^5.0.0` | React bindings for Leaflet | Future coordinate-driven Mumbai map |
+| `@types/leaflet` | `^1.9.22` | Leaflet type declarations | Type-safe map data integration |
 
 ## Development Dependencies
 
@@ -34,12 +38,6 @@ These packages are planned but have not been installed yet. Move each package to
 | Package | Intended purpose | Planned milestone |
 |---|---|---|
 | `@supabase/ssr` | Supabase server/browser session helpers | Database integration |
-| `@supabase/supabase-js` | Supabase PostgreSQL API client | Database integration |
-| `zod` | Runtime schema validation | GDELT and API payload validation |
-| `recharts` | Time-series charts | Dashboard visualization |
-| `react-leaflet` | React bindings for Leaflet maps | Mumbai hotspot map |
-| `leaflet` | Interactive map engine | Mumbai hotspot map |
-| `@types/leaflet` | Leaflet TypeScript declarations | Type-safe map components |
 
 ## Installation Rules
 
@@ -55,3 +53,4 @@ These packages are planned but have not been installed yet. Move each package to
 |---|---|---|
 | 2026-09-08 | Initial Next.js scaffold | 364 packages installed; npm reported 0 vulnerabilities |
 | 2026-09-15 | Backend foundation dependencies | `@supabase/supabase-js` and `zod` installed; npm reported 0 vulnerabilities |
+| 2026-09-15 | Dashboard visualization dependencies | Recharts, Leaflet, React-Leaflet, and Leaflet types installed; npm reported 0 vulnerabilities |

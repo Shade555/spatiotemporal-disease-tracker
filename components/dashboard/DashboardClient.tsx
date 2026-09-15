@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { initialDiseases, type DailyMetric, type Disease } from "@/lib/types";
 import { TelemetryStream } from "@/components/ui/TelemetryStream";
+import { SignalChart } from "@/components/charts/SignalChart";
+import { MumbaiHotspotMap } from "@/components/maps/MumbaiHotspotMap";
 
 type Article = {
   id: string;
@@ -60,7 +62,7 @@ export function DashboardClient() {
   const articleCount = metrics.reduce((total, metric) => total + metric.articleCount, 0);
   const activeSignals = metrics.filter((metric) => metric.isAnomaly).length;
   const sourceCount = metrics.reduce((total, metric) => total + metric.uniqueSourceCount, 0);
-  const maxArticleCount = Math.max(...metrics.map((metric) => metric.articleCount), 1);
+  const alerts = metrics.filter((metric) => metric.isAnomaly).sort((left, right) => right.metricDate.localeCompare(left.metricDate));
 
   return (
     <>
@@ -90,13 +92,7 @@ export function DashboardClient() {
                 <h2 className="font-(family-name:--font-pixel-display) text-[0.65rem] text-[#22c55e]">SIGNAL VOLUME / 07 DAY WINDOW</h2>
                 <span className="text-xl text-[#f97316]">● LIVE</span>
               </div>
-              {metrics.length === 0 ? <EmptyState label="NO METRICS IN SELECTED WINDOW" /> : <div className="flex h-64 items-end gap-2 border-b-2 border-l-2 border-[#536274] p-4">
-                {metrics.map((metric, index) => (
-                  <div className="group flex h-full flex-1 items-end" key={`${metric.metricDate}-${metric.disease}`} title={`${metric.metricDate}: ${metric.articleCount} articles`}>
-                    <div className={`segmented-meter-bar w-full ${metric.isAnomaly ? "bg-[#f97316]" : "bg-[#22c55e]"} group-hover:bg-[#a855f7]`} style={{ height: `${Math.max((metric.articleCount / maxArticleCount) * 100, 4)}%`, animationDelay: `${index * 70}ms` }} />
-                  </div>
-                ))}
-              </div>}
+              {metrics.length === 0 ? <EmptyState label="NO METRICS IN SELECTED WINDOW" /> : <SignalChart metrics={metrics} />}
               <div className="mt-4 flex justify-between text-lg text-[#8da395]"><span>{metrics[0]?.metricDate ?? "-- SEP"}</span><span>{metrics.at(-1)?.metricDate ?? "-- SEP"}</span></div>
             </article>
 
@@ -108,12 +104,16 @@ export function DashboardClient() {
 
           <section className="mt-7 grid gap-5 md:grid-cols-2">
             <article className="pixel-window focus-window bg-[#172235] p-5" tabIndex={0}>
+              <h2 className="mb-5 font-(family-name:--font-pixel-display) text-[0.65rem] text-[#f97316]">ALERT QUEUE</h2>
+              {alerts.length === 0 ? <EmptyState label="NO UNUSUAL NEWS SIGNALS" /> : <div className="space-y-4 text-xl">{alerts.map((alert) => <div className="border-l-4 border-[#f97316] pl-4" key={`${alert.metricDate}-${alert.disease}`}><b className="text-[#f97316]">{alert.disease.toUpperCase()}</b> {"// unusual article volume on "}{alert.metricDate}<br /><span className="text-[#8da395]">score {alert.anomalyScore?.toFixed(2)} {"// news signal only"}</span></div>)}</div>}
+            </article>
+            <article className="pixel-window focus-window bg-[#172235] p-5" tabIndex={0}>
               <h2 className="mb-5 font-(family-name:--font-pixel-display) text-[0.65rem] text-[#f97316]">ARTICLE EVIDENCE</h2>
               {articles.length === 0 ? <EmptyState label="NO ARTICLES RETURNED" /> : <div className="space-y-4 text-xl">{articles.map((article) => <a className="block border-l-4 border-[#f97316] pl-4 hover:text-[#f97316]" href={article.url} key={article.id} rel="noreferrer" target="_blank"><b>{article.title}</b><br /><span className="text-[#8da395]">{article.source_domain ?? "unknown source"} {"//"} {new Date(article.published_at).toLocaleDateString("en-IN")}</span></a>)}</div>}
             </article>
             <article className="pixel-window focus-window bg-[#172235] p-5" tabIndex={0}>
               <h2 className="mb-5 font-(family-name:--font-pixel-display) text-[0.65rem] text-[#22c55e]">REGION MAP // MUMBAI</h2>
-              <div className="flex min-h-28 items-center justify-center border-2 border-dashed border-[#536274] text-center text-xl text-[#8da395]">MAP MODULE STANDBY<br />Awaiting coordinate feed</div>
+              <MumbaiHotspotMap />
             </article>
           </section>
         </>

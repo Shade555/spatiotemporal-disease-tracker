@@ -219,13 +219,13 @@ Required indexes: `articles(published_at desc)`, `articles(location, published_a
 
 The first NLP version is deterministic and versioned. Normalize case, punctuation, and whitespace before matching. Maintain disease aliases and symptom dictionaries for fever, high fever, headache, muscle pain, joint pain, rash, nausea, vomiting, chills, and fatigue. Store the canonical term and matched source text.
 
-The initial anomaly baseline uses a configurable rolling window, default seven days. Compute:
+The production anomaly baseline uses a configurable rolling window, default seven days, and only prior observations. Compute:
 
 ```text
 anomaly_score = (article_count - rolling_mean) / rolling_stddev
 ```
 
-When standard deviation is zero, use a documented fallback rather than emitting infinity. Mark an anomaly when the score meets the configured threshold and the minimum article count guard is satisfied. The UI must display the date, disease, observed volume, baseline, and an explicit non-clinical warning.
+When standard deviation is zero, leave `anomaly_score` null and mark `is_anomaly` false rather than emitting infinity. The default minimum history is three prior observations and the default alert threshold is a z-score of 2. The UI must display the date, disease, observed volume, baseline, score, and an explicit non-clinical warning.
 
 ## 7. Security, Reliability, and Ethics
 

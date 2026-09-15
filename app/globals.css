@@ -340,6 +340,25 @@ a {
   animation: line-arrive 300ms steps(4, end) both;
 }
 
+.map-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.3;
+  background-image: linear-gradient(#22c55e 1px, transparent 1px), linear-gradient(90deg, #22c55e 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.map-point {
+  position: absolute;
+  display: block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #050807;
+  background: #f97316;
+  box-shadow: 0 0 12px #f97316;
+  transform: translate(-50%, -50%);
+}
+
 .segmented-meter-bar {
   transform-origin: left;
   animation: meter-fill 1200ms steps(8, end) both;
