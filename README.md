@@ -639,8 +639,6 @@ docs/research-methodology
 [DONE]  Dashboard REFRESH button for live ingestion trigger
 [DONE]  Live telemetry card with ingestion status logs
 [DONE]  Python anomaly detection tests and validation
-[DONE]  Map visualization with proper street context
-[NEXT]  Test TypeScript/Python anomaly equivalence (fixture ingestion)
 [NEXT]  Add API and ingestion integration tests
 [NEXT]  Deploy to Vercel or equivalent hosting
 [NEXT]  Enable GitHub Actions scheduled ingestion

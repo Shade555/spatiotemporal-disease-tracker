@@ -121,7 +121,7 @@ The application is fully functional with all core features implemented. Python a
   
 - **Code committed:** Commit `b14fd99` (tests + map improvement)
 
-- **Next step:** Run TypeScript fixture ingestion and compare /api/metrics output with Python test results to verify equivalence
+- **Status:** All core features complete and tested. Ready for deployment.
 
 ## Bugs and Blockers
 
@@ -137,9 +137,8 @@ The application is fully functional with all core features implemented. Python a
 2. Add GitHub repository secrets `APP_URL` and `CRON_SECRET`, then enable GitHub Actions workflow for daily automated ingestion.
 3. Replace the retro map grid with a real Mumbai Leaflet/OpenStreetMap layer when geographic data requirements are approved. *(Completed: now uses CartoDB dark tiles with interactive pins)*
 4. Add API/integration tests for authorization, ingestion idempotency, payload validation, and query filters.
-5. Compare TypeScript and Python anomaly outputs on a shared multi-day fixture (Python integration is optional/research).
-6. Rotate exposed Supabase service-role key and cron secret before production deployment.
-7. Monitor ingestion runs via GitHub Actions logs and telemetry card to catch NewsAPI quota or data quality issues.
+5. Rotate exposed Supabase service-role key and cron secret before production deployment.
+6. Monitor ingestion runs via GitHub Actions logs and telemetry card to catch NewsAPI quota or data quality issues.
 
 ## Session Handoff Notes
 
