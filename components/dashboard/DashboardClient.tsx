@@ -39,14 +39,18 @@ export function DashboardClient() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const params = new URLSearchParams({ from: dateDaysAgo(days - 1), to: dateDaysAgo(0) });
+    const metricsParams = new URLSearchParams({ from: dateDaysAgo(days - 1), to: dateDaysAgo(0) });
+    const articlesParams = new URLSearchParams({ page: "1", pageSize: "20" });
+    if (disease !== "All") {
+      articlesParams.set("disease", disease);
+    }
 
     async function loadDashboard() {
       setState("loading");
       try {
         const [metricsResponse, articlesResponse] = await Promise.all([
-          fetch(`/api/metrics?${params}`, { signal: controller.signal }),
-          fetch(`/api/articles?page=1&pageSize=5`, { signal: controller.signal }),
+          fetch(`/api/metrics?${metricsParams}`, { signal: controller.signal }),
+          fetch(`/api/articles?${articlesParams}`, { signal: controller.signal }),
         ]);
         if (!metricsResponse.ok || !articlesResponse.ok) throw new Error("Dashboard data unavailable");
         const metricsPayload = await metricsResponse.json() as { data: DailyMetric[] };
@@ -62,16 +66,40 @@ export function DashboardClient() {
 
     void loadDashboard();
     return () => controller.abort();
-  }, [days, reloadToken]);
+  }, [days, reloadToken, disease]);
 
-  const availableDiseases = [...new Set([...initialDiseases, ...allMetrics.map((metric) => metric.disease)])];
+  // Extract diseases from both metrics and article entities (dynamic detection)
+  const diseasesFromMetrics = new Set(allMetrics.map((metric) => metric.disease));
+  const diseasesFromArticles = new Set(
+    articles.flatMap((article) =>
+      article.extracted_entities
+        ?.filter((entity) => entity.entity_type === "epidemiological_term")
+        .map((entity) => entity.normalized_value) ?? [],
+    ),
+  );
+  const availableDiseases = [...new Set([...diseasesFromMetrics, ...diseasesFromArticles])].sort();
   const diseases: Array<"All" | Disease> = ["All", ...availableDiseases];
+
   const metrics = disease === "All" ? allMetrics : allMetrics.filter((metric) => metric.disease === disease);
   const articleCount = metrics.reduce((total, metric) => total + metric.articleCount, 0);
   const activeSignals = metrics.filter((metric) => metric.isAnomaly).length;
   const sourceCount = metrics.reduce((total, metric) => total + metric.uniqueSourceCount, 0);
-  const alerts = metrics.filter((metric) => metric.isAnomaly).sort((left, right) => right.metricDate.localeCompare(left.metricDate));
-  const mapPoints = articles.flatMap((article) => article.latitude !== null && article.longitude !== null ? [{ id: article.id, latitude: article.latitude, longitude: article.longitude, label: article.locality ?? "Mumbai", disease: article.extracted_entities?.find((entity) => entity.entity_type === "epidemiological_term")?.normalized_value ?? "signal" }] : []);
+
+  const mapPoints = articles.flatMap((article) =>
+    article.latitude !== null && article.longitude !== null
+      ? [
+          {
+            id: article.id,
+            latitude: article.latitude,
+            longitude: article.longitude,
+            label: article.locality ?? "Mumbai",
+            disease:
+              article.extracted_entities?.find((entity) => entity.entity_type === "epidemiological_term")
+                ?.normalized_value ?? "signal",
+          },
+        ]
+      : [],
+  );
 
   return (
     <>
@@ -105,7 +133,7 @@ export function DashboardClient() {
           <section className="mt-7 grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
             <article className="pixel-window bg-[#050807] p-5">
               <div className="mb-6 flex items-center justify-between border-b-2 border-[#22c55e] pb-3">
-                <h2 className="font-(family-name:--font-pixel-display) text-[0.65rem] text-[#22c55e]">SIGNAL VOLUME / 07 DAY WINDOW</h2>
+                <h2 className="font-(family-name:--font-pixel-display) text-[0.65rem] text-[#22c55e]">SIGNAL VOLUME / {String(days).padStart(2, "0")} DAY WINDOW</h2>
                 <div className="flex items-center gap-2"><div className="chart-mode-group" aria-label="Chart mode" role="group">{(["line", "bar", "area"] as ChartMode[]).map((mode) => <button aria-pressed={chartMode === mode} className={`chart-mode-button ${chartMode === mode ? "chart-mode-active" : ""}`} key={mode} onClick={() => setChartMode(mode)} type="button">{mode.toUpperCase()}</button>)}</div><span className="text-xl text-[#f97316]">● LIVE</span></div>
               </div>
               {metrics.length === 0 ? <EmptyState label="NO METRICS IN SELECTED WINDOW" /> : <SignalChart metrics={metrics} mode={chartMode} />}
@@ -118,18 +146,38 @@ export function DashboardClient() {
             </article>
           </section>
 
-          <section className="mt-7 grid gap-5 md:grid-cols-2">
-            <article className="pixel-window focus-window bg-[#172235] p-5" tabIndex={0}>
-              <h2 className="mb-5 font-(family-name:--font-pixel-display) text-[0.65rem] text-[#f97316]">ALERT QUEUE</h2>
-              {alerts.length === 0 ? <EmptyState label="NO UNUSUAL NEWS SIGNALS" /> : <div className="space-y-4 text-xl">{alerts.map((alert) => <div className="border-l-4 border-[#f97316] pl-4" key={`${alert.metricDate}-${alert.disease}`}><b className="text-[#f97316]">{alert.disease.toUpperCase()}</b> {"// unusual article volume on "}{alert.metricDate}<br /><span className="text-[#8da395]">score {alert.anomalyScore?.toFixed(2)} {"// news signal only"}</span></div>)}</div>}
-            </article>
-            <article className="pixel-window focus-window bg-[#172235] p-5" tabIndex={0}>
-              <h2 className="mb-5 font-(family-name:--font-pixel-display) text-[0.65rem] text-[#f97316]">ARTICLE EVIDENCE</h2>
-              {articles.length === 0 ? <EmptyState label="NO ARTICLES RETURNED" /> : <div className="space-y-4 text-xl">{articles.map((article) => <a className="block border-l-4 border-[#f97316] pl-4 hover:text-[#f97316]" href={article.url} key={article.id} rel="noreferrer" target="_blank"><b>{article.title}</b><br /><span className="text-[#8da395]">{article.source_domain ?? "unknown source"} {"//"} {new Date(article.published_at).toLocaleDateString("en-IN")}</span></a>)}</div>}
-            </article>
+          <section className="mt-7">
             <article className="pixel-window focus-window bg-[#172235] p-5" tabIndex={0}>
               <h2 className="mb-5 font-(family-name:--font-pixel-display) text-[0.65rem] text-[#22c55e]">REGION MAP // MUMBAI</h2>
               <MumbaiHotspotMap points={mapPoints} />
+            </article>
+          </section>
+
+          <section className="mt-7">
+            <article className="pixel-window focus-window bg-[#172235] p-5" tabIndex={0}>
+              <h2 className="mb-5 font-(family-name:--font-pixel-display) text-[0.65rem] text-[#f97316]">ARTICLE EVIDENCE</h2>
+              {articles.length === 0 ? (
+                <EmptyState label="NO ARTICLES FOR SELECTED DISEASE" />
+              ) : (
+                <div className="space-y-4 text-xl">
+                  {articles.map((article) => {
+                    const detectedDiseases = article.extracted_entities
+                      ?.filter((entity) => entity.entity_type === "epidemiological_term")
+                      .map((entity) => entity.normalized_value)
+                      .join(", ");
+                    return (
+                      <a className="block border-l-4 border-[#f97316] pl-4 hover:text-[#f97316]" href={article.url} key={article.id} rel="noreferrer" target="_blank">
+                        <b>{article.title}</b>
+                        <br />
+                        <span className="text-[#8da395]">
+                          {article.source_domain ?? "unknown source"} {"//"} {new Date(article.published_at).toLocaleDateString("en-IN")}
+                          {detectedDiseases && <> // {detectedDiseases}</>}
+                        </span>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
             </article>
           </section>
         </>

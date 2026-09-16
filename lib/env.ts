@@ -8,6 +8,7 @@ const serverEnvSchema = z.object({
   GDELT_QUERY_LOCATION: z.literal("Mumbai").default("Mumbai"),
   GDELT_QUERY_DISEASES: z.string().default("Dengue,Malaria"),
   GOOGLE_CLOUD_PROJECT: z.string().min(1),
+  NEWSAPI_KEY: z.string().min(1),
 });
 
 export function getServerEnv() {
@@ -19,6 +20,7 @@ export function getServerEnv() {
     GDELT_QUERY_LOCATION: process.env.GDELT_QUERY_LOCATION,
     GDELT_QUERY_DISEASES: process.env.GDELT_QUERY_DISEASES,
     GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
+    NEWSAPI_KEY: process.env.NEWSAPI_KEY,
   });
 }
 

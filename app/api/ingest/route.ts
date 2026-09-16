@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import sampleResponse from "@/fixtures/gdelt/sample-response.json";
-import { fetchGdeltArticles, fetchGdeltArticlesBigQuery, GdeltRequestError, normalizeGdeltArticle } from "@/lib/gdelt";
+import { fetchGdeltArticles, fetchGdeltArticlesBigQuery, fetchNewsApiArticles, GdeltRequestError, normalizeGdeltArticle } from "@/lib/gdelt";
 import { getConfiguredDiseases, getServerEnv } from "@/lib/env";
 import { applyRollingAnomalies, calculateDailyMetrics } from "@/lib/metrics";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -41,12 +41,29 @@ export async function POST(request: NextRequest) {
     } else if (useLegacyApi) {
       sourceLabel = "gdelt-doc2";
       source = (await fetchGdeltArticles()).articles;
-    } else {
+    } else if (sourceParam === "bigquery") {
       sourceLabel = "bigquery";
-      source = (await fetchGdeltArticlesBigQuery()).articles;
+      console.log("[ingest] Starting BigQuery fetch...");
+      try {
+        source = (await fetchGdeltArticlesBigQuery()).articles;
+        console.log("[ingest] BigQuery returned", source.length, "articles");
+      } catch (bqError) {
+        console.error("[ingest] BigQuery error:", bqError instanceof Error ? bqError.message : String(bqError));
+        throw bqError;
+      }
+    } else {
+      sourceLabel = "newsapi";
+      console.log("[ingest] Starting NewsAPI fetch...");
+      try {
+        source = (await fetchNewsApiArticles()).articles;
+        console.log("[ingest] NewsAPI returned", source.length, "articles");
+      } catch (newsError) {
+        console.error("[ingest] NewsAPI error:", newsError instanceof Error ? newsError.message : String(newsError));
+        throw newsError;
+      }
     }
     query = source[0]?.query ?? `Mumbai (${configuredDiseases.join(" OR ")})`;
-
+    console.log("[ingest] Processing", source.length, "articles from", sourceLabel);
     const run = await supabase.from("pipeline_runs").insert({ status: "running", query }).select("id").single();
     if (run.error) throw run.error;
     runId = run.data.id;
@@ -131,6 +148,8 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ status: "succeeded", source: sourceLabel, query, articlesSeen: source.length, articlesInserted, entitiesExtracted, startedAt });
   } catch (error) {
+    console.error("[ingest] Caught error:", error instanceof Error ? error.message : String(error));
+    if (error instanceof Error) console.error("[ingest] Stack:", error.stack);
     if (runId) {
       await supabase.from("pipeline_runs").update({ status: "failed", completed_at: new Date().toISOString(), error_message: error instanceof Error ? error.message : "Unknown ingestion failure" }).eq("id", runId);
     }

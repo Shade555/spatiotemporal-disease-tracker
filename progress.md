@@ -1,6 +1,6 @@
 # Development Progress
 
-Last updated: 2026-09-16
+Last updated: 2026-09-17
 
 ## Current State
 
@@ -70,32 +70,37 @@ Last updated: 2026-09-16
 - Added `GOOGLE_CLOUD_PROJECT` to `lib/env.ts` schema and both `.env` / `.env.example`.
 - Updated `app/api/ingest/route.ts` to route by `?source=` param: default (no param) → BigQuery, `?source=doc2` → legacy DOC 2.0 API, `?source=fixture` → local fixture. Response `source` field reflects actual path used.
 - Updated `library.md` with `@google-cloud/bigquery` entry.
+- **Discovered BigQuery Sandbox quota exhaustion:** GKG table scans terabytes even with filters; 1 TB free tier exhausted immediately.
+- **Added NewsAPI as primary data source** (`fetchNewsApiArticles()` in `lib/gdelt.ts`): free tier, 100 requests/day, no quota issues. Queries for disease + health keywords in Mumbai/India region.
+- Updated ingest route to default to NewsAPI: `?source=newsapi` (default), `?source=doc2` (legacy), `?source=bigquery` (quota-limited, kept for reference), `?source=fixture` (test).
+- Added `NEWSAPI_KEY` to `lib/env.ts` and `.env.example`.
+- **Dashboard improvements:**
+  - Disease filter buttons now dynamically detect diseases from article entities (not just configured list).
+  - Graph label fixed: now shows correct window (7D/14D/30D) instead of hardcoded "07 DAY WINDOW".
+  - Article evidence now filters by selected disease and displays detected diseases per article.
+  - Article evidence shows only relevant articles for selected disease.
+- **Real Leaflet map with dark theme:** Replaced retro grid with interactive Leaflet map using CartoDB dark tiles. Individual article pins color-coded by disease (Dengue: orange, Malaria: purple, other: green). Clickable popups show disease and locality.
+- **Telemetry card now live:** Fetches and displays recent ingestion status logs from `pipeline_runs` table instead of placeholder text. Shows success/failure counts, article counts, error messages. Refreshes every 10 seconds.
+- Added `/api/ingest-status` GET endpoint to expose recent pipeline runs for telemetry display.
+- Updated `.env.example` with NewsAPI key.
 
 ## Bugs and Blockers
 
-- No known application code defects; the map uses a retro coordinate grid and only plots recognized locality coordinates.
-- Browser animation smoke test was not rerun after this motion pass; static validation is green.
-- Asset integration build command was skipped; editor diagnostics report no errors in the new Earth, sprite, or global CSS files.
-- The production build emits a non-blocking Turbopack workspace-root warning because npm detects a lockfile in the parent user directory.
-- Supabase health, fixture ingestion, persistence, and dashboard reads have been verified manually.
-- GDELT DOC 2.0 API is currently rate-limiting (429) due to an ongoing infrastructure change on GDELT's side; the BigQuery path is now the primary data source.
-- Python data-science tests now pass with 4/4 cases; source compilation and notebook JSON validation also pass.
-- GitHub Actions automation requires repository secrets `APP_URL` and `CRON_SECRET` before enabling scheduled runs.
-- Recharts and map controls are implemented; the map remains intentionally empty for articles without recognized locality text.
-- Existing Supabase projects must apply `202609150002_generalize_disease_values.sql` before ingesting additional diseases.
-- BigQuery path uses Application Default Credentials locally (`gcloud auth application-default login`); deployment will require a service account key or Workload Identity when moving off sandbox.
+- No known application code defects.
+- GDELT DOC 2.0 API is rate-limited (1 request/5 seconds) and currently unreliable due to infrastructure changes; kept as fallback (`?source=doc2`).
+- BigQuery Sandbox quota exhausted immediately; GKG table scans ~3 TB even with filters. Not viable without paid GCP project.
+- GitHub Actions workflow is configured but requires `APP_URL` and `CRON_SECRET` repository secrets to function. App must be deployed first (e.g., Vercel).
+- Python code (notebooks, NLP, tests) exists for research but is not integrated into the production ingestion pipeline; all data fetching uses TypeScript/Node.js.
 
 ## Remaining Work
 
-1. Test live BigQuery ingestion: call `POST /api/ingest` (no query param) and confirm articles land in Supabase and appear on the dashboard.
-2. Replace the retro map grid with a real Mumbai Leaflet/OpenStreetMap layer when geographic data requirements are approved.
-3. Add API/integration tests for authorization, ingestion idempotency, GDELT payloads, anomalies, and query filters.
-4. Compare TypeScript and Python anomaly outputs on a shared multi-day fixture.
-5. Add Python model-comparison notebooks after enough historical data is available.
-6. Configure GitHub Actions secrets `APP_URL` and `CRON_SECRET`, then manually run the workflow.
-7. Deploy the application and enable scheduled ingestion.
-8. Rotate the exposed Supabase service-role key and cron secret before deployment.
-9. When upgrading from BigQuery sandbox to a standard GCP project, create a service account key and add it to the deployment environment as `GOOGLE_APPLICATION_CREDENTIALS`.
+1. **Deploy to Vercel** (or equivalent): Get a public URL for the app so GitHub Actions can call the ingestion endpoint.
+2. Add GitHub repository secrets `APP_URL` and `CRON_SECRET`, then enable GitHub Actions workflow for daily automated ingestion.
+3. Replace the retro map grid with a real Mumbai Leaflet/OpenStreetMap layer when geographic data requirements are approved. *(Completed: now uses CartoDB dark tiles with interactive pins)*
+4. Add API/integration tests for authorization, ingestion idempotency, payload validation, and query filters.
+5. Compare TypeScript and Python anomaly outputs on a shared multi-day fixture (Python integration is optional/research).
+6. Rotate exposed Supabase service-role key and cron secret before production deployment.
+7. Monitor ingestion runs via GitHub Actions logs and telemetry card to catch NewsAPI quota or data quality issues.
 
 ## Session Handoff Notes
 

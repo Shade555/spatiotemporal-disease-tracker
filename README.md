@@ -13,52 +13,53 @@
 
 > A retro-tech public-health monitor for detecting unusual infectious-disease news activity in Mumbai.
 
-This project is a Sem VII Data Science Honours research system. It collects public news metadata from the **GDELT Global Knowledge Graph (GKG) via Google BigQuery**, extracts configurable disease and symptom signals, aggregates daily activity, detects unusual volume using a transparent rolling baseline, and presents the evidence through a CRT-style dashboard.
+This project is a Sem VII Data Science Honours research system. It collects public news metadata from **NewsAPI**, extracts configurable disease and symptom signals, aggregates daily activity, detects unusual volume using a transparent rolling baseline, and presents the evidence through a CRT-style dashboard.
 
-The GDELT DOC 2.0 API is retained as a fallback path (`?source=doc2`) but is no longer the primary data source — GDELT's infrastructure changes made it unreliable. BigQuery queries the same underlying dataset with no per-request rate limits.
+**Data sources (in order of preference):**
+1. **NewsAPI** (primary) — free tier, 100 requests/day, no quota issues
+2. **GDELT DOC 2.0 API** (fallback) — rate-limited to 1 req/5sec, currently unreliable
+3. **Google BigQuery GKG** (reference only) — sandbox quota exhausted, not viable without paid GCP project
 
 **Important research boundary:** this system detects news signals. It does not produce confirmed case counts, diagnose patients, or replace official epidemiological surveillance.
 
 ## Current Status
 
 ```text
-[ONLINE] Next.js application
-[ONLINE] Supabase persistence and fixture ingestion
-[ONLINE] Configurable disease extraction
-[ONLINE] Python NLP and anomaly-analysis layer
-[ONLINE] Dashboard filters, chart modes, alert cards
-[ONLINE] BigQuery GDELT GKG ingestion (primary data source)
-[READY ] Coordinate-aware Mumbai map module
-[READY ] GitHub Actions workflow
-[DEFER ] GDELT DOC 2.0 API (infrastructure issues upstream; kept as ?source=doc2 fallback)
+[ONLINE] Next.js application with real Leaflet map
+[ONLINE] Supabase persistence with live ingestion
+[ONLINE] Dynamic disease detection from article entities
+[ONLINE] NewsAPI as primary data source (100 req/day, no quota issues)
+[ONLINE] Telemetry card showing live ingestion status logs
+[ONLINE] Python NLP and anomaly-analysis layer (research, not in pipeline)
+[ONLINE] Dashboard with disease filtering, chart modes, alerts
+[READY ] GitHub Actions workflow (awaiting Vercel deployment URL)
+[DEFER ] GDELT DOC 2.0 API (rate-limited, kept as fallback)
+[DEFER ] BigQuery GKG (quota-exhausted sandbox, reference only)
 ```
 
-The ingestion pipeline now has three paths:
+The ingestion pipeline with three paths:
 
 ```text
-Default (BigQuery)
-    Google BigQuery: gdelt-bq.gdeltv2.gkg
+Primary (NewsAPI)
+    NewsAPI: disease + health keywords in Mumbai/India
         |
         v
-POST /api/ingest
+POST /api/ingest   (or auto-triggered by GitHub Actions daily)
         |
         v
 Supabase: articles -> extracted_entities -> daily_metrics -> pipeline_runs
         |
         +--> GET /api/metrics
         +--> GET /api/articles
+        +--> GET /api/ingest-status (for telemetry)
         |
         v
-Retro surveillance dashboard
+Dashboard: live Leaflet map, dynamic disease buttons, filtered articles
 
-Development fixture path
-    fixtures/gdelt/sample-response.json
-        |
-        v
-POST /api/ingest?source=fixture
-
-Legacy fallback (unreliable)
-POST /api/ingest?source=doc2   →   GDELT DOC 2.0 API
+Fallback paths
+    ?source=doc2 → GDELT DOC 2.0 API (rate-limited)
+    ?source=bigquery → BigQuery GKG (sandbox quota exhausted)
+    ?source=fixture → Local test fixture
 ```
 
 ## What The System Does
@@ -104,19 +105,21 @@ The styling is implemented primarily in [app/globals.css](app/globals.css), with
 | Styling | Tailwind CSS 4 + custom CRT CSS |
 | Fonts | `Press Start 2P` and `VT323` through `next/font` |
 | Charts | Recharts |
-| Map foundation | Leaflet, React-Leaflet, Leaflet types |
+| Map | Leaflet with CartoDB dark tiles (React-Leaflet) |
 | Validation | Zod |
 | Database client | `@supabase/supabase-js` |
-| BigQuery client | `@google-cloud/bigquery` |
+| News API | Native `fetch` (no dependency needed) |
+| BigQuery | `@google-cloud/bigquery` (reference, not active) |
 
 ### Data source and storage
 
-- GDELT Global Knowledge Graph v2 via **Google BigQuery** (`gdelt-bq.gdeltv2.gkg` public table)
-- GDELT DOC 2.0 Article List API (legacy fallback, `?source=doc2`)
+- **NewsAPI** (primary, free tier, 100 requests/day)
+- GDELT DOC 2.0 Article List API (fallback, rate-limited)
+- Google BigQuery GKG v2 (reference, quota-exhausted on sandbox)
 - Supabase PostgreSQL
 - Supabase Row Level Security for public read policies
 - Server-only service-role access for ingestion writes
-- GitHub Actions for scheduled ingestion
+- GitHub Actions for scheduled daily ingestion
 
 ### Data science
 

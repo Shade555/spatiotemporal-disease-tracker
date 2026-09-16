@@ -209,40 +209,139 @@ export async function fetchGdeltArticlesBigQuery(): Promise<{ query: string; art
 
   const bigquery = new BigQuery({ projectId: env.GOOGLE_CLOUD_PROJECT });
 
-  // Build per-disease LIKE conditions for the Themes column.
-  // GKG Themes are semicolon-delimited strings, e.g. "HEALTH;DISEASE_DENGUE;..."
-  const themeConditions = diseases
-    .map((_, i) => `LOWER(Themes) LIKE CONCAT('%', @disease${i}, '%')`)
-    .join(" OR ");
+  // Build disease theme patterns
+  const diseaseThemes = diseases.map((d) => `DISEASE_${d.toUpperCase()}`).join("|");
+  const themeCondition = `REGEXP_CONTAINS(V2Themes, r'(${diseaseThemes})')`;
+
+  // DATE column is INT64 in YYYYMMDD format
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const yesterday = String(parseInt(today) - 1);
 
   const sql = `
     SELECT
       DocumentIdentifier   AS url,
       SourceCommonName     AS source_domain,
       DATE                 AS seen_date,
-      Themes               AS themes,
-      Locations            AS locations,
-      Tone                 AS tone
+      V2Themes             AS themes,
+      V2Locations          AS locations,
+      V2Tone               AS tone
     FROM \`gdelt-bq.gdeltv2.gkg\`
     WHERE
-      _PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)
-      AND (${themeConditions})
-      AND (
-        LOWER(Locations) LIKE '%mumbai%'
-        OR LOWER(Locations) LIKE '%india%'
-      )
+      DATE >= ${yesterday}
+      AND ${themeCondition}
+      AND REGEXP_CONTAINS(V2Locations, r'(?i)(mumbai|maharashtra|india)')
     LIMIT 250
   `;
 
-  // Build the params array: one entry per disease.
-  const params: Record<string, string> = {};
-  diseases.forEach((disease, i) => { params[`disease${i}`] = disease.toLowerCase(); });
-
-  const [rows] = await bigquery.query({ query: sql, params, location: "US" });
+  // Cap bytes scanned to 100 MB per query to stay under free tier
+  const [rows] = await bigquery.query({
+    query: sql,
+    location: "US",
+    maximumBytesBilled: "104857600", // 100 MB in bytes
+  });
 
   const articles = (rows as GkgRow[])
     .map((row) => normalizeGkgRow(row, query, diseases))
     .filter((a): a is NormalizedArticle => a !== null);
 
   return { query, articles };
+}
+
+
+// ---------------------------------------------------------------------------
+// NewsAPI path — free tier, no quota issues
+// Searches for disease-related news in Mumbai/India region
+// ---------------------------------------------------------------------------
+
+type NewsApiArticle = {
+  source: { id: string | null; name: string };
+  author: string | null;
+  title: string;
+  description: string | null;
+  url: string;
+  urlToImage: string | null;
+  publishedAt: string;
+  content: string | null;
+};
+
+function normalizeNewsApiArticle(
+  article: NewsApiArticle,
+  query: string,
+): NormalizedArticle | null {
+  const url = article.url?.trim();
+  const title = article.title?.trim();
+  if (!url || !title) return null;
+
+  try {
+    new URL(url);
+  } catch {
+    return null;
+  }
+
+  return {
+    url,
+    title,
+    snippet: article.description ?? article.content ?? null,
+    sourceDomain: article.source?.name ?? null,
+    sourceCountry: "India",
+    language: "English",
+    publishedAt: new Date(article.publishedAt).toISOString(),
+    query,
+    location,
+    rawPayload: article,
+  };
+}
+
+export async function fetchNewsApiArticles(): Promise<{
+  query: string;
+  articles: NormalizedArticle[];
+}> {
+  const env = getServerEnv();
+  const diseases = getConfiguredDiseases();
+  const query = buildGdeltQuery();
+
+  // Build search query: "disease1 OR disease2 OR ... AND Mumbai"
+  const diseaseQuery = diseases.map((d) => `"${d}"`).join(" OR ");
+  const searchQuery = `(${diseaseQuery}) AND (Mumbai OR India) AND (health OR outbreak OR cases)`;
+
+  const url = new URL("https://newsapi.org/v2/everything");
+  url.searchParams.set("q", searchQuery);
+  url.searchParams.set("sortBy", "publishedAt");
+  url.searchParams.set("language", "en");
+  url.searchParams.set("pageSize", "100");
+  url.searchParams.set("apiKey", env.NEWSAPI_KEY);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+
+  try {
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `NewsAPI returned ${response.status}: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      articles?: NewsApiArticle[];
+      status?: string;
+      message?: string;
+    };
+
+    if (data.status !== "ok") {
+      throw new Error(`NewsAPI error: ${data.message ?? "unknown error"}`);
+    }
+
+    const articles = (data.articles ?? [])
+      .map((article) => normalizeNewsApiArticle(article, query))
+      .filter((a): a is NormalizedArticle => a !== null);
+
+    return { query, articles };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
