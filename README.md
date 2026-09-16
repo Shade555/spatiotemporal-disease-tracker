@@ -631,13 +631,19 @@ docs/research-methodology
 [DONE]  GitHub Actions workflow scaffold
 [DONE]  BigQuery GDELT GKG ingestion (primary data source)
 [DONE]  GDELT DOC 2.0 retry + exponential backoff (kept as fallback)
-[NEXT]  Test live BigQuery ingestion end-to-end
+[DONE]  NewsAPI as primary data source (free tier, no quota issues)
+[DONE]  Real geographic map layer (Leaflet with CartoDB dark tiles)
+[DONE]  Dynamic disease detection from article entities
+[DONE]  Disease-focused article filtering (epidemiological_term only)
+[DONE]  Enriched map popups (article title, date, external link)
+[DONE]  Dashboard REFRESH button for live ingestion trigger
+[DONE]  Live telemetry card with ingestion status logs
+[NEXT]  Test live NewsAPI ingestion end-to-end
 [NEXT]  Add API and ingestion integration tests
-[NEXT]  Add real geographic map layer
 [NEXT]  Compare Python and TypeScript anomaly outputs
-[NEXT]  Deploy and enable scheduled ingestion
-[NEXT]  Upgrade GCP project for service account key (deployment auth)
-[NEXT]  Rotate exposed credentials before deployment
+[NEXT]  Deploy to Vercel or equivalent hosting
+[NEXT]  Enable GitHub Actions scheduled ingestion
+[NEXT]  Upgrade GCP project for BigQuery production key
 ```
 
 ## License
