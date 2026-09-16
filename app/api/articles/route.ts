@@ -10,9 +10,14 @@ export async function GET(request: NextRequest) {
     const parsed = articleQuerySchema.parse(Object.fromEntries(new URL(request.url).searchParams));
     const supabase = getSupabaseAdmin();
 
-    // If disease is specified, query extracted_entities first to get matching article IDs
+    // Query: Get articles that have disease-related entities (epidemiological_term)
+    // If a specific disease is selected, filter to that disease
+    // If "All" is selected, show ALL disease-related articles (any epidemiological_term)
+    
     let articleIds: string[] | null = null;
+    
     if (parsed.disease) {
+      // Specific disease selected
       const { data: entities } = await supabase
         .from("extracted_entities")
         .select("article_id")
@@ -20,6 +25,16 @@ export async function GET(request: NextRequest) {
         .eq("entity_type", "epidemiological_term");
 
       if (entities) {
+        articleIds = [...new Set(entities.map((e) => e.article_id))];
+      }
+    } else {
+      // "All" selected - show only articles that have ANY disease-related entities
+      const { data: entities } = await supabase
+        .from("extracted_entities")
+        .select("article_id")
+        .eq("entity_type", "epidemiological_term");
+
+      if (entities && entities.length > 0) {
         articleIds = [...new Set(entities.map((e) => e.article_id))];
       }
     }
@@ -32,15 +47,13 @@ export async function GET(request: NextRequest) {
       .select("*, extracted_entities(*)", { count: "exact" })
       .eq("location", parsed.location);
 
-    // If disease filter returned no articles, return empty
-    if (parsed.disease && (!articleIds || articleIds.length === 0)) {
+    // If no disease-related articles found, return empty
+    if (!articleIds || articleIds.length === 0) {
       return NextResponse.json({ data: [], page: parsed.page, pageSize: parsed.pageSize, total: 0 });
     }
 
-    // Filter by article IDs if disease is specified
-    if (articleIds) {
-      query = query.in("id", articleIds);
-    }
+    // Filter by article IDs (only disease-related articles)
+    query = query.in("id", articleIds);
 
     const { data, error, count } = await query.order("published_at", { ascending: false }).range(from, to);
 

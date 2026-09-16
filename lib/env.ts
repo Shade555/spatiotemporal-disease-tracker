@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const serverEnvSchema = z.object({
+  NEXT_PUBLIC_APP_URL: z.string().url(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   CRON_SECRET: z.string().min(1),
@@ -13,6 +14,7 @@ const serverEnvSchema = z.object({
 
 export function getServerEnv() {
   return serverEnvSchema.parse({
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     CRON_SECRET: process.env.CRON_SECRET,

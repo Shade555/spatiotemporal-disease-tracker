@@ -10,6 +10,9 @@ export type MapPoint = {
   longitude: number;
   label: string;
   disease: string;
+  title?: string;
+  url?: string;
+  published_at?: string;
 };
 
 export default function LeafletMap({ points = [] }: { points?: MapPoint[] }) {
@@ -43,6 +46,17 @@ export default function LeafletMap({ points = [] }: { points?: MapPoint[] }) {
           : point.disease === "Malaria"
             ? "#a855f7"
             : "#22c55e";
+      
+      const popupContent = `
+        <div style="color: #d2e7d8; background: #050807; padding: 6px; border: 1px solid ${color}; font-family: monospace; font-size: 11px; max-width: 200px;">
+          <b style="color: ${color}">${point.disease}</b><br/>
+          <span style="color: #8da395">📍 ${point.label}</span><br/>
+          ${point.title ? `<span style="margin: 4px 0; display: block;"><b>${point.title}</b></span>` : ''}
+          ${point.published_at ? `<span style="color: #a855f7; font-size: 10px;">${new Date(point.published_at).toLocaleDateString('en-IN')}</span><br/>` : ''}
+          ${point.url ? `<a href="${point.url}" target="_blank" style="color: #22c55e; text-decoration: underline;">View Article →</a>` : ''}
+        </div>
+      `;
+      
       const marker = L.circleMarker([point.latitude, point.longitude], {
         radius: 8,
         fillColor: color,
@@ -51,9 +65,7 @@ export default function LeafletMap({ points = [] }: { points?: MapPoint[] }) {
         opacity: 0.8,
         fillOpacity: 0.6,
       })
-        .bindPopup(
-          `<div style="color: #d2e7d8; background: #050807; padding: 4px; border: 1px solid ${color}; font-family: monospace; font-size: 12px;"><b>${point.disease}</b><br/>${point.label}</div>`,
-        )
+        .bindPopup(popupContent)
         .addTo(map.current!);
 
       markers.current.set(point.id, marker);

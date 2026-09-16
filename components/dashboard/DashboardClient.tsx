@@ -36,6 +36,7 @@ export function DashboardClient() {
   const [chartMode, setChartMode] = useState<ChartMode>("line");
   const [lastRefresh, setLastRefresh] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [isIngesting, setIsIngesting] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -67,8 +68,6 @@ export function DashboardClient() {
     void loadDashboard();
     return () => controller.abort();
   }, [days, reloadToken, disease]);
-
-  // Extract diseases from both metrics and article entities (dynamic detection)
   const diseasesFromMetrics = new Set(allMetrics.map((metric) => metric.disease));
   const diseasesFromArticles = new Set(
     articles.flatMap((article) =>
@@ -96,10 +95,34 @@ export function DashboardClient() {
             disease:
               article.extracted_entities?.find((entity) => entity.entity_type === "epidemiological_term")
                 ?.normalized_value ?? "signal",
+            title: article.title,
+            url: article.url,
+            published_at: article.published_at,
           },
         ]
       : [],
   );
+
+  async function handleRefresh() {
+    setIsIngesting(true);
+    try {
+      // Call the trigger-ingest endpoint (server-side secret handling)
+      const response = await fetch("/api/trigger-ingest", {
+        method: "POST",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        console.error("Ingestion failed:", response.status);
+      }
+    } catch (error) {
+      console.error("Ingestion error:", error);
+    } finally {
+      // After ingestion completes, refresh the dashboard data
+      setIsIngesting(false);
+      setReloadToken((token) => token + 1);
+    }
+  }
 
   return (
     <>
@@ -116,7 +139,14 @@ export function DashboardClient() {
         <span className="font-(family-name:--font-pixel-display) text-[0.55rem]">WINDOW:</span>
         {[7, 14, 30].map((option) => <button className={`pixel-button px-3 py-2 ${days === option ? "bg-[#a855f7] text-[#050807]" : "text-[#a855f7]"}`} key={option} onClick={() => setDays(option)} type="button">{option}D</button>)}
         <span className="ml-auto">SYNC: {lastRefresh ?? "--:--"}</span>
-        <button className="pixel-button px-3 py-2 text-[#f97316]" onClick={() => setReloadToken((token) => token + 1)} type="button">[ REFRESH ]</button>
+        <button
+          className="pixel-button px-3 py-2 text-[#f97316]"
+          onClick={handleRefresh}
+          disabled={isIngesting}
+          type="button"
+        >
+          {isIngesting ? "[ INGESTING... ]" : "[ REFRESH ]"}
+        </button>
       </section>
 
       {state === "loading" && <div className="pixel-window bg-[#050807] p-6 text-xl text-[#f97316]">&gt; CONNECTING TO SURVEILLANCE DATA<span className="terminal-cursor" /></div>}

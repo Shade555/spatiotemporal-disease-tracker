@@ -300,9 +300,9 @@ export async function fetchNewsApiArticles(): Promise<{
   const diseases = getConfiguredDiseases();
   const query = buildGdeltQuery();
 
-  // Build search query: "disease1 OR disease2 OR ... AND Mumbai"
-  const diseaseQuery = diseases.map((d) => `"${d}"`).join(" OR ");
-  const searchQuery = `(${diseaseQuery}) AND (Mumbai OR India) AND (health OR outbreak OR cases)`;
+  // Build search query: fetch all health/disease/outbreak articles in Mumbai region
+  // Don't filter by specific disease names — let entity extraction classify them
+  const searchQuery = `(Mumbai OR India) AND (health OR disease OR outbreak OR epidemic OR pandemic OR cases OR fever OR infection)`;
 
   const url = new URL("https://newsapi.org/v2/everything");
   url.searchParams.set("q", searchQuery);
