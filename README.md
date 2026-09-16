@@ -25,13 +25,15 @@ This project is a Sem VII Data Science Honours research system. It collects publ
 ## Current Status
 
 ```text
-[ONLINE] Next.js application with real Leaflet map
+[ONLINE] Next.js application with real Leaflet map + enriched popups
 [ONLINE] Supabase persistence with live ingestion
 [ONLINE] Dynamic disease detection from article entities
 [ONLINE] NewsAPI as primary data source (100 req/day, no quota issues)
 [ONLINE] Telemetry card showing live ingestion status logs
 [ONLINE] Python NLP and anomaly-analysis layer (research, not in pipeline)
 [ONLINE] Dashboard with disease filtering, chart modes, alerts
+[ONLINE] Disease-focused article filtering (only epidemiological signals)
+[ONLINE] Dashboard REFRESH button triggers live ingestion
 [READY ] GitHub Actions workflow (awaiting Vercel deployment URL)
 [DEFER ] GDELT DOC 2.0 API (rate-limited, kept as fallback)
 [DEFER ] BigQuery GKG (quota-exhausted sandbox, reference only)
@@ -64,17 +66,18 @@ Fallback paths
 
 ## What The System Does
 
-1. Builds a GDELT query that always includes `Mumbai` and the configured disease list.
-2. Queries the GDELT GKG v2 BigQuery table (`gdelt-bq.gdeltv2.gkg`), filtering by disease themes and Mumbai/India location mentions from the last 24 hours.
-3. Validates and normalizes each row into a common article shape.
+1. Fetches health and disease-related articles from **NewsAPI** using broad keyword search (health, disease, outbreak, epidemic, etc.)
+2. Queries the GDELT GKG v2 BigQuery table or falls back to GDELT DOC 2.0 API or local fixtures.
+3. Validates and normalizes each article into a common shape.
 4. Uses the article URL as the idempotency key — re-running ingestion for the same articles is safe.
-5. Extracts disease, symptom, location, and epidemiological entities using rule-based NLP.
+5. **Extracts disease entities** using rule-based NLP (detects diseases mentioned in text, not just hardcoded list).
 6. Upserts articles and entities into Supabase.
-7. Aggregates daily article volume, symptom count, and source count by disease.
-8. Calculates a prior-only rolling baseline and anomaly score.
-9. Stores pipeline success/failure audit information in `pipeline_runs`.
-10. Serves metrics and evidence through typed API routes.
-11. Displays filters, KPI cards, chart modes, alert cards, article evidence, and locality-derived map points.
+7. **Filters to disease-related articles only** — articles without detected diseases are excluded from dashboard.
+8. Aggregates daily article volume, symptom count, and source count by disease.
+9. Calculates a prior-only rolling baseline and anomaly score.
+10. Stores pipeline success/failure audit information in `pipeline_runs`.
+11. Serves metrics and evidence through typed API routes.
+12. **Displays filters, KPI cards, chart modes, alert cards, article evidence with metadata, and locality-derived map points with article details.**
 
 ## Visual Language
 
@@ -89,6 +92,8 @@ The interface deliberately behaves like a public-health command terminal:
 - Click-to-hit virus pose animation
 - Typewriter telemetry stream
 - Stepped line, bar, and area chart modes
+- **Interactive Leaflet map with disease-colored pins** — click pins to see article title, date, and source link
+- **Responsive article evidence list** — shows detected diseases and publication dates
 - Responsive mobile and desktop layouts
 
 The styling is implemented primarily in [app/globals.css](app/globals.css), with reusable UI modules under [components/ui](components/ui).
@@ -428,13 +433,20 @@ Supported query parameters:
 ```text
 page=1
 pageSize=20
-disease=Dengue
+disease=Dengue          (optional; if omitted, shows ALL disease-related articles)
 from=2026-09-09
 to=2026-09-15
 location=Mumbai
 ```
 
-Returns article metadata, extracted entities, pagination information, and locality-derived coordinates when a recognized Mumbai locality appears in the article text.
+**Important:** All returned articles have detected disease entities (`epidemiological_term`). When no disease is specified, the endpoint returns articles with ANY detected disease (not random health news).
+
+Returns article metadata, extracted entities, pagination information, and locality-derived coordinates when a recognized Mumbai locality appears in the article text. Each article includes:
+- Title and snippet
+- Source domain and publication date
+- Extracted disease entities (what diseases were detected)
+- Latitude/longitude and locality (if recognized)
+- URL link to original article
 
 ## Database Model
 

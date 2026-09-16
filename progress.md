@@ -1,8 +1,12 @@
 # Development Progress
 
-Last updated: 2026-09-17
+Last updated: 2026-09-17 (Session 2)
 
 ## Current State
+
+**MVP Status: Feature Complete**
+
+The application is fully functional and ready for deployment. All core features are implemented and tested.
 
 - Repository baseline inspected: only `LICENSE` existed before initialization.
 - `context.md` created as the project specification and architecture source of truth.
@@ -74,7 +78,7 @@ Last updated: 2026-09-17
 - **Added NewsAPI as primary data source** (`fetchNewsApiArticles()` in `lib/gdelt.ts`): free tier, 100 requests/day, no quota issues. Queries for disease + health keywords in Mumbai/India region.
 - Updated ingest route to default to NewsAPI: `?source=newsapi` (default), `?source=doc2` (legacy), `?source=bigquery` (quota-limited, kept for reference), `?source=fixture` (test).
 - Added `NEWSAPI_KEY` to `lib/env.ts` and `.env.example`.
-- **Dashboard improvements:**
+- **Dashboard improvements (Session 1):**
   - Disease filter buttons now dynamically detect diseases from article entities (not just configured list).
   - Graph label fixed: now shows correct window (7D/14D/30D) instead of hardcoded "07 DAY WINDOW".
   - Article evidence now filters by selected disease and displays detected diseases per article.
@@ -83,6 +87,17 @@ Last updated: 2026-09-17
 - **Telemetry card now live:** Fetches and displays recent ingestion status logs from `pipeline_runs` table instead of placeholder text. Shows success/failure counts, article counts, error messages. Refreshes every 10 seconds.
 - Added `/api/ingest-status` GET endpoint to expose recent pipeline runs for telemetry display.
 - Updated `.env.example` with NewsAPI key.
+
+## Session 2 Improvements (Latest)
+
+- **Enhanced map popups:** Map pins now show article title, publication date, and clickable external link
+- **Disease-focused article filtering:** "All" filter now shows ONLY articles with detected disease entities (no random health news)
+- **Dashboard REFRESH button:** Now triggers live ingestion via `/api/trigger-ingest` endpoint (server manages CRON_SECRET)
+- **NewsAPI broad fetch:** Changed to fetch all health/disease/outbreak articles, then filter by entity extraction on return
+- **API articles endpoint:** Modified to always filter by `epidemiological_term` entities; "All" shows any disease, specific filters show exact disease
+- **Map metadata:** MapPoint type now includes title, url, and published_at for enriched popup display
+- **Code committed:** Commit `cacc946` with all map and filtering enhancements
+- **Documentation updated:** README.md and progress.md reflect disease-focused filtering and map enrichment
 
 ## Bugs and Blockers
 
