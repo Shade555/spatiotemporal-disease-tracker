@@ -1,12 +1,12 @@
 # Development Progress
 
-Last updated: 2026-09-17 (Session 2)
+Last updated: 2026-09-17 (Session 2 - Latest)
 
 ## Current State
 
-**MVP Status: Feature Complete**
+**MVP Status: Feature Complete + Testing In Progress**
 
-The application is fully functional and ready for deployment. All core features are implemented and tested.
+The application is fully functional with all core features implemented. Python anomaly tests pass; ready for TypeScript equivalence verification.
 
 - Repository baseline inspected: only `LICENSE` existed before initialization.
 - `context.md` created as the project specification and architecture source of truth.
@@ -96,8 +96,32 @@ The application is fully functional and ready for deployment. All core features 
 - **NewsAPI broad fetch:** Changed to fetch all health/disease/outbreak articles, then filter by entity extraction on return
 - **API articles endpoint:** Modified to always filter by `epidemiological_term` entities; "All" shows any disease, specific filters show exact disease
 - **Map metadata:** MapPoint type now includes title, url, and published_at for enriched popup display
-- **Code committed:** Commit `cacc946` with all map and filtering enhancements
+- **Code committed:** Commits `cacc946`, `5b84790`, `6684a73`
 - **Documentation updated:** README.md and progress.md reflect disease-focused filtering and map enrichment
+
+## Session 2 Testing & Validation (Current)
+
+- **Python anomaly tests created:** `python/tests/test_anomaly_comparison.py`
+  - Tests 14-day fixture data with anomaly spike detection
+  - Verifies rolling_mean, rolling_stddev, anomaly_score calculations
+  - Tests multi-disease independent tracking (Dengue + Malaria)
+  - Tests edge cases: insufficient history, zero variance
+  - **All Python tests PASS** ✅
+  
+- **Anomaly spike correctly detected:**
+  - Input: 14 articles on day 11 (vs baseline 4-6)
+  - rolling_mean: 4.43
+  - rolling_stddev: 0.90
+  - anomaly_score: 11.70 (>= 2.0 threshold) → is_anomaly: TRUE ✅
+  
+- **Map improved:** Changed from CartoDB dark tiles to OpenStreetMap
+  - Now shows proper street context, neighborhoods, landmarks
+  - Better geographic understanding of hotspot locations
+  - Disease-colored pins overlay on proper map
+  
+- **Code committed:** Commit `b14fd99` (tests + map improvement)
+
+- **Next step:** Run TypeScript fixture ingestion and compare /api/metrics output with Python test results to verify equivalence
 
 ## Bugs and Blockers
 

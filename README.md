@@ -632,15 +632,16 @@ docs/research-methodology
 [DONE]  BigQuery GDELT GKG ingestion (primary data source)
 [DONE]  GDELT DOC 2.0 retry + exponential backoff (kept as fallback)
 [DONE]  NewsAPI as primary data source (free tier, no quota issues)
-[DONE]  Real geographic map layer (Leaflet with CartoDB dark tiles)
+[DONE]  Real geographic map layer (OpenStreetMap with street context)
 [DONE]  Dynamic disease detection from article entities
 [DONE]  Disease-focused article filtering (epidemiological_term only)
 [DONE]  Enriched map popups (article title, date, external link)
 [DONE]  Dashboard REFRESH button for live ingestion trigger
 [DONE]  Live telemetry card with ingestion status logs
-[NEXT]  Test live NewsAPI ingestion end-to-end
+[DONE]  Python anomaly detection tests and validation
+[DONE]  Map visualization with proper street context
+[NEXT]  Test TypeScript/Python anomaly equivalence (fixture ingestion)
 [NEXT]  Add API and ingestion integration tests
-[NEXT]  Compare Python and TypeScript anomaly outputs
 [NEXT]  Deploy to Vercel or equivalent hosting
 [NEXT]  Enable GitHub Actions scheduled ingestion
 [NEXT]  Upgrade GCP project for BigQuery production key
