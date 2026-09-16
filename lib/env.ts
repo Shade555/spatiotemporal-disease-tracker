@@ -7,6 +7,7 @@ const serverEnvSchema = z.object({
   GDELT_API_URL: z.string().url().default("https://api.gdeltproject.org/api/v2/doc/doc"),
   GDELT_QUERY_LOCATION: z.literal("Mumbai").default("Mumbai"),
   GDELT_QUERY_DISEASES: z.string().default("Dengue,Malaria"),
+  GOOGLE_CLOUD_PROJECT: z.string().min(1),
 });
 
 export function getServerEnv() {
@@ -17,6 +18,7 @@ export function getServerEnv() {
     GDELT_API_URL: process.env.GDELT_API_URL,
     GDELT_QUERY_LOCATION: process.env.GDELT_QUERY_LOCATION,
     GDELT_QUERY_DISEASES: process.env.GDELT_QUERY_DISEASES,
+    GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
   });
 }
 

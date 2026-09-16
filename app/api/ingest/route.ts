@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import sampleResponse from "@/fixtures/gdelt/sample-response.json";
-import { fetchGdeltArticles, GdeltRequestError, normalizeGdeltArticle } from "@/lib/gdelt";
+import { fetchGdeltArticles, fetchGdeltArticlesBigQuery, GdeltRequestError, normalizeGdeltArticle } from "@/lib/gdelt";
 import { getConfiguredDiseases, getServerEnv } from "@/lib/env";
 import { applyRollingAnomalies, calculateDailyMetrics } from "@/lib/metrics";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -20,16 +20,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const useFixture = new URL(request.url).searchParams.get("source") === "fixture";
+  const searchParams = new URL(request.url).searchParams;
+  const sourceParam = searchParams.get("source"); // "fixture" | "doc2" | null (default: bigquery)
+  const useFixture = sourceParam === "fixture";
+  const useLegacyApi = sourceParam === "doc2";
   const supabase = getSupabaseAdmin();
   const startedAt = new Date().toISOString();
   let query = "";
   let runId: string | null = null;
 
   try {
-    const source = useFixture
-      ? gdeltResponseSchema.parse(sampleResponse).articles.map((article) => normalizeGdeltArticle(article, `Mumbai (${configuredDiseases.join(" OR ")})`)).filter((article): article is NonNullable<typeof article> => article !== null)
-      : (await fetchGdeltArticles()).articles;
+    let sourceLabel: string;
+    let source: NonNullable<ReturnType<typeof normalizeGdeltArticle>>[];
+
+    if (useFixture) {
+      sourceLabel = "fixture";
+      source = gdeltResponseSchema.parse(sampleResponse).articles
+        .map((article) => normalizeGdeltArticle(article, `Mumbai (${configuredDiseases.join(" OR ")})`))
+        .filter((article): article is NonNullable<typeof article> => article !== null);
+    } else if (useLegacyApi) {
+      sourceLabel = "gdelt-doc2";
+      source = (await fetchGdeltArticles()).articles;
+    } else {
+      sourceLabel = "bigquery";
+      source = (await fetchGdeltArticlesBigQuery()).articles;
+    }
     query = source[0]?.query ?? `Mumbai (${configuredDiseases.join(" OR ")})`;
 
     const run = await supabase.from("pipeline_runs").insert({ status: "running", query }).select("id").single();
@@ -114,7 +129,7 @@ export async function POST(request: NextRequest) {
     if (runId) {
       await supabase.from("pipeline_runs").update({ status: "succeeded", completed_at: new Date().toISOString(), articles_seen: source.length, articles_inserted: articlesInserted, entities_extracted: entitiesExtracted }).eq("id", runId);
     }
-    return NextResponse.json({ status: "succeeded", source: useFixture ? "fixture" : "gdelt", query, articlesSeen: source.length, articlesInserted, entitiesExtracted, startedAt });
+    return NextResponse.json({ status: "succeeded", source: sourceLabel, query, articlesSeen: source.length, articlesInserted, entitiesExtracted, startedAt });
   } catch (error) {
     if (runId) {
       await supabase.from("pipeline_runs").update({ status: "failed", completed_at: new Date().toISOString(), error_message: error instanceof Error ? error.message : "Unknown ingestion failure" }).eq("id", runId);

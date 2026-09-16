@@ -13,7 +13,9 @@
 
 > A retro-tech public-health monitor for detecting unusual infectious-disease news activity in Mumbai.
 
-This project is a Sem VII Data Science Honours research system. It collects public news metadata from the GDELT DOC 2.0 API, extracts configurable disease and symptom signals, aggregates daily activity, detects unusual volume using a transparent rolling baseline, and presents the evidence through a CRT-style dashboard.
+This project is a Sem VII Data Science Honours research system. It collects public news metadata from the **GDELT Global Knowledge Graph (GKG) via Google BigQuery**, extracts configurable disease and symptom signals, aggregates daily activity, detects unusual volume using a transparent rolling baseline, and presents the evidence through a CRT-style dashboard.
+
+The GDELT DOC 2.0 API is retained as a fallback path (`?source=doc2`) but is no longer the primary data source — GDELT's infrastructure changes made it unreliable. BigQuery queries the same underlying dataset with no per-request rate limits.
 
 **Important research boundary:** this system detects news signals. It does not produce confirmed case counts, diagnose patients, or replace official epidemiological surveillance.
 
@@ -25,43 +27,53 @@ This project is a Sem VII Data Science Honours research system. It collects publ
 [ONLINE] Configurable disease extraction
 [ONLINE] Python NLP and anomaly-analysis layer
 [ONLINE] Dashboard filters, chart modes, alert cards
+[ONLINE] BigQuery GDELT GKG ingestion (primary data source)
 [READY ] Coordinate-aware Mumbai map module
 [READY ] GitHub Actions workflow
-[DEFER ] Live GDELT testing while upstream rate limits requests
+[DEFER ] GDELT DOC 2.0 API (infrastructure issues upstream; kept as ?source=doc2 fallback)
 ```
 
-The fixture-to-dashboard path has been verified:
+The ingestion pipeline now has three paths:
 
 ```text
-GDELT fixture
-    |
-    v
-POST /api/ingest?source=fixture
-    |
-    v
+Default (BigQuery)
+    Google BigQuery: gdelt-bq.gdeltv2.gkg
+        |
+        v
+POST /api/ingest
+        |
+        v
 Supabase: articles -> extracted_entities -> daily_metrics -> pipeline_runs
-    |
-    +--> GET /api/metrics
-    +--> GET /api/articles
-    |
-    v
+        |
+        +--> GET /api/metrics
+        +--> GET /api/articles
+        |
+        v
 Retro surveillance dashboard
+
+Development fixture path
+    fixtures/gdelt/sample-response.json
+        |
+        v
+POST /api/ingest?source=fixture
+
+Legacy fallback (unreliable)
+POST /api/ingest?source=doc2   →   GDELT DOC 2.0 API
 ```
 
 ## What The System Does
 
 1. Builds a GDELT query that always includes `Mumbai` and the configured disease list.
-2. Fetches a daily article batch or loads the committed fixture during development.
-3. Validates the response and ignores malformed articles safely.
-4. Normalizes URLs, titles, snippets, domains, timestamps, and raw payloads.
-5. Uses the URL as the article idempotency key.
-6. Extracts disease, symptom, location, and epidemiological entities.
-7. Upserts articles and entities into Supabase.
-8. Aggregates daily article volume, symptom count, and source count by disease.
-9. Calculates a prior-only rolling baseline and anomaly score.
-10. Stores pipeline success/failure audit information.
-11. Serves metrics and evidence through typed API routes.
-12. Displays filters, KPI cards, chart modes, alert cards, article evidence, and locality-derived map points.
+2. Queries the GDELT GKG v2 BigQuery table (`gdelt-bq.gdeltv2.gkg`), filtering by disease themes and Mumbai/India location mentions from the last 24 hours.
+3. Validates and normalizes each row into a common article shape.
+4. Uses the article URL as the idempotency key — re-running ingestion for the same articles is safe.
+5. Extracts disease, symptom, location, and epidemiological entities using rule-based NLP.
+6. Upserts articles and entities into Supabase.
+7. Aggregates daily article volume, symptom count, and source count by disease.
+8. Calculates a prior-only rolling baseline and anomaly score.
+9. Stores pipeline success/failure audit information in `pipeline_runs`.
+10. Serves metrics and evidence through typed API routes.
+11. Displays filters, KPI cards, chart modes, alert cards, article evidence, and locality-derived map points.
 
 ## Visual Language
 
@@ -95,10 +107,12 @@ The styling is implemented primarily in [app/globals.css](app/globals.css), with
 | Map foundation | Leaflet, React-Leaflet, Leaflet types |
 | Validation | Zod |
 | Database client | `@supabase/supabase-js` |
+| BigQuery client | `@google-cloud/bigquery` |
 
 ### Data source and storage
 
-- GDELT DOC 2.0 Article List API
+- GDELT Global Knowledge Graph v2 via **Google BigQuery** (`gdelt-bq.gdeltv2.gkg` public table)
+- GDELT DOC 2.0 Article List API (legacy fallback, `?source=doc2`)
 - Supabase PostgreSQL
 - Supabase Row Level Security for public read policies
 - Server-only service-role access for ingestion writes
@@ -139,7 +153,7 @@ spatiotemporal-disease-tracker/
 |   `-- sample-response.json        # Deterministic development input
 |-- lib/
 |   |-- env.ts                      # Server environment validation
-|   |-- gdelt.ts                    # Query, fetch, timeout, normalization
+|   |-- gdelt.ts                    # BigQuery + DOC 2.0 fetch, normalization, retry logic
 |   |-- geo.ts                      # Recognized Mumbai locality coordinates
 |   |-- metrics.ts                  # Aggregation + anomaly calculations
 |   |-- supabase.ts                 # Server-only Supabase client
@@ -171,6 +185,8 @@ spatiotemporal-disease-tracker/
 - npm
 - Python 3.12 or newer recommended
 - A Supabase project
+- A Google Cloud project (BigQuery Sandbox is sufficient) with the BigQuery API enabled
+- Google Cloud CLI (`gcloud`) — for local Application Default Credentials
 - A GitHub repository if scheduled ingestion is required
 
 ## Local Setup
@@ -203,6 +219,8 @@ CRON_SECRET=your-long-random-secret
 GDELT_API_URL=https://api.gdeltproject.org/api/v2/doc/doc
 GDELT_QUERY_LOCATION=Mumbai
 GDELT_QUERY_DISEASES=Dengue,Malaria
+
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
 ```
 
 The disease list is configuration-driven. For example:
@@ -213,7 +231,19 @@ GDELT_QUERY_DISEASES=Dengue,Malaria,Chikungunya,Typhoid
 
 Any non-empty comma-separated disease list is accepted. The database does not require a schema change for new disease names.
 
-### 4. Apply Supabase migrations
+### 4. Authenticate with Google Cloud (BigQuery)
+
+The BigQuery client uses Application Default Credentials. Run this once:
+
+```powershell
+gcloud auth application-default login
+```
+
+This opens a browser for sign-in and saves credentials locally. No key file or extra environment variable is needed for local development.
+
+> **Sandbox note:** BigQuery Sandbox (no billing account) works for local development. It cannot create service account keys, so ADC is the only auth method. When deploying, upgrade to a standard GCP project and add a service account key as `GOOGLE_APPLICATION_CREDENTIALS`.
+
+### 5. Apply Supabase migrations
 
 In Supabase **SQL Editor**, run these files in order:
 
@@ -222,7 +252,7 @@ In Supabase **SQL Editor**, run these files in order:
 
 The first migration creates the tables, indexes, RLS, and timestamp triggers. The second migration removes the original fixed disease constraints for projects that already applied the first migration.
 
-### 5. Start the app
+### 6. Start the app
 
 ```powershell
 npm run dev
@@ -288,9 +318,9 @@ Run the same command again. The second run should remain successful but report:
 
 That confirms URL-based idempotency.
 
-### Live GDELT ingestion
+### Live BigQuery ingestion
 
-Omit `source=fixture`:
+The default path — no `source` param — queries BigQuery:
 
 ```powershell
 Invoke-WebRequest -UseBasicParsing `
@@ -299,13 +329,29 @@ Invoke-WebRequest -UseBasicParsing `
   -Headers $headers
 ```
 
-The route calls GDELT with:
+This queries `gdelt-bq.gdeltv2.gkg` for Mumbai Dengue/Malaria articles from the last 24 hours using your Application Default Credentials. A successful response looks like:
 
-```text
-Mumbai (Dengue OR Malaria)
+```json
+{
+  "status": "succeeded",
+  "source": "bigquery",
+  "query": "Mumbai (Dengue OR Malaria)",
+  "articlesSeen": 12,
+  "articlesInserted": 12,
+  "entitiesExtracted": 47
+}
 ```
 
-Live GDELT may return HTTP `429 Too Many Requests`. The route exposes this as a structured response with retry metadata. Avoid repeated retries; use the fixture path while the upstream cooldown is active.
+### Legacy DOC 2.0 fallback (unreliable)
+
+```powershell
+Invoke-WebRequest -UseBasicParsing `
+  -Uri "http://localhost:3000/api/ingest?source=doc2" `
+  -Method POST `
+  -Headers $headers
+```
+
+The route uses exponential backoff (6s minimum, up to 3 retries) but GDELT's DOC 2.0 infrastructure is currently unreliable. Use BigQuery or the fixture path instead.
 
 ## API Reference
 
@@ -321,23 +367,25 @@ Protected route. Requires:
 Authorization: Bearer <CRON_SECRET>
 ```
 
-Optional development mode:
+Source selection via query param:
 
-```text
-POST /api/ingest?source=fixture
-```
+| `?source=` | Behaviour |
+|---|---|
+| *(omitted)* | **BigQuery** — queries `gdelt-bq.gdeltv2.gkg` (primary, recommended) |
+| `fixture` | Local fixture file — deterministic, no network, for development |
+| `doc2` | GDELT DOC 2.0 API — legacy fallback, currently unreliable |
 
-Successful ingestion:
+Successful ingestion response:
 
 ```json
 {
   "status": "succeeded",
-  "source": "fixture|gdelt",
+  "source": "bigquery",
   "query": "Mumbai (Dengue OR Malaria)",
-  "articlesSeen": 2,
-  "articlesInserted": 2,
-  "entitiesExtracted": 11,
-  "startedAt": "2026-09-15T13:53:52.607Z"
+  "articlesSeen": 12,
+  "articlesInserted": 12,
+  "entitiesExtracted": 47,
+  "startedAt": "2026-09-16T08:00:00.000Z"
 }
 ```
 
@@ -548,7 +596,9 @@ docs/research-methodology
 
 ## Known Limitations
 
-- GDELT may throttle live requests with HTTP `429`.
+- The BigQuery path uses Application Default Credentials locally; deployment requires a service account key (not available on BigQuery Sandbox — upgrade to a standard GCP project for production).
+- GKG rows don't carry clean article titles; derived titles use source domain + disease name.
+- GDELT DOC 2.0 API is retained as `?source=doc2` but is currently unreliable due to upstream infrastructure changes.
 - The current map plots recognized locality coordinates on a retro grid; a full tile-backed geographic map remains future work.
 - Article volume is a media signal and is affected by reporting bias, duplicate coverage, and source availability.
 - Rule-based NLP can produce false positives and false negatives.
@@ -564,12 +614,15 @@ docs/research-methodology
 [DONE]  Rolling anomaly baseline and alert cards
 [DONE]  Dashboard chart modes and controls
 [DONE]  GitHub Actions workflow scaffold
-[NEXT]  Commit latest dashboard/map/GDELT changes
+[DONE]  BigQuery GDELT GKG ingestion (primary data source)
+[DONE]  GDELT DOC 2.0 retry + exponential backoff (kept as fallback)
+[NEXT]  Test live BigQuery ingestion end-to-end
 [NEXT]  Add API and ingestion integration tests
 [NEXT]  Add real geographic map layer
 [NEXT]  Compare Python and TypeScript anomaly outputs
 [NEXT]  Deploy and enable scheduled ingestion
-[NEXT]  Rotate exposed credentials
+[NEXT]  Upgrade GCP project for service account key (deployment auth)
+[NEXT]  Rotate exposed credentials before deployment
 ```
 
 ## License

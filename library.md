@@ -1,6 +1,6 @@
 # Installed Library Ledger
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 This file tracks libraries installed through npm for the Spatiotemporal Epidemic Tracking and Early Warning System. Keep it synchronized with `package.json` whenever dependencies are added, upgraded, or removed.
 
@@ -17,6 +17,7 @@ This file tracks libraries installed through npm for the Spatiotemporal Epidemic
 | `leaflet` | `^1.9.4` | Interactive map engine | Future geographic hotspot map layers |
 | `react-leaflet` | `^5.0.0` | React bindings for Leaflet | Future coordinate-driven Mumbai map |
 | `@types/leaflet` | `^1.9.22` | Leaflet type declarations | Type-safe map data integration |
+| `@google-cloud/bigquery` | `^7` | Google BigQuery Node.js client | Query public GDELT GKG v2 tables; uses Application Default Credentials locally |
 
 ## Development Dependencies
 
@@ -54,3 +55,4 @@ These packages are planned but have not been installed yet. Move each package to
 | 2026-09-08 | Initial Next.js scaffold | 364 packages installed; npm reported 0 vulnerabilities |
 | 2026-09-15 | Backend foundation dependencies | `@supabase/supabase-js` and `zod` installed; npm reported 0 vulnerabilities |
 | 2026-09-15 | Dashboard visualization dependencies | Recharts, Leaflet, React-Leaflet, and Leaflet types installed; npm reported 0 vulnerabilities |
+| 2026-09-16 | BigQuery client | `@google-cloud/bigquery@^7` installed; npm reported 0 vulnerabilities |

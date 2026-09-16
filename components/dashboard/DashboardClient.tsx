@@ -97,7 +97,7 @@ export function DashboardClient() {
       {state === "ready" && (
         <>
           <section className="grid gap-5 md:grid-cols-3">
-            <MetricCard label="ARTICLES / 7D" value={String(articleCount)} note="News mentions" color="text-[#22c55e]" />
+            <MetricCard label={`ARTICLES / ${days}D`} value={String(articleCount)} note="News mentions" color="text-[#22c55e]" />
             <MetricCard label="ACTIVE SIGNALS" value={String(activeSignals).padStart(2, "0")} note="Research indicators" color="text-[#f97316]" />
             <MetricCard label="SOURCE NODES" value={String(sourceCount)} note="Mumbai region" color="text-[#a855f7]" />
           </section>

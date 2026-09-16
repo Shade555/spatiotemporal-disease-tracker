@@ -1,6 +1,6 @@
 # Development Progress
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 ## Current State
 
@@ -61,6 +61,15 @@ Last updated: 2026-09-15
 - Pushed the initial repository structure as commit `06d768f`.
 - Verified the landing-to-dashboard flow in a browser at `http://localhost:3000`.
 - Installed `@supabase/supabase-js` and `zod`; npm reported zero vulnerabilities.
+- Fixed dashboard KPI label: `ARTICLES / 7D` now tracks the selected window (7D/14D/30D).
+- Fixed hardcoded dashboard date header: now computes the current date in `Asia/Kolkata` at render time.
+- Added GDELT DOC 2.0 retry logic: exponential backoff with 6s minimum interval, up to 3 retries, honouring `Retry-After`.
+- Switched primary ingestion source from GDELT DOC 2.0 API to **Google BigQuery** (`gdelt-bq.gdeltv2.gkg` public table) due to ongoing GDELT infrastructure changes making the DOC 2.0 API unreliable.
+- Installed `@google-cloud/bigquery@^7`.
+- Added `fetchGdeltArticlesBigQuery()` in `lib/gdelt.ts`: queries GKG v2 partitioned by last 24 hours, filters by disease themes and Mumbai/India location, normalizes rows to `NormalizedArticle`.
+- Added `GOOGLE_CLOUD_PROJECT` to `lib/env.ts` schema and both `.env` / `.env.example`.
+- Updated `app/api/ingest/route.ts` to route by `?source=` param: default (no param) → BigQuery, `?source=doc2` → legacy DOC 2.0 API, `?source=fixture` → local fixture. Response `source` field reflects actual path used.
+- Updated `library.md` with `@google-cloud/bigquery` entry.
 
 ## Bugs and Blockers
 
@@ -69,23 +78,24 @@ Last updated: 2026-09-15
 - Asset integration build command was skipped; editor diagnostics report no errors in the new Earth, sprite, or global CSS files.
 - The production build emits a non-blocking Turbopack workspace-root warning because npm detects a lockfile in the parent user directory.
 - Supabase health, fixture ingestion, persistence, and dashboard reads have been verified manually.
-- Live GDELT reaches the upstream service but currently returns HTTP 429 rate limiting; retry after cooldown.
+- GDELT DOC 2.0 API is currently rate-limiting (429) due to an ongoing infrastructure change on GDELT's side; the BigQuery path is now the primary data source.
 - Python data-science tests now pass with 4/4 cases; source compilation and notebook JSON validation also pass.
 - GitHub Actions automation requires repository secrets `APP_URL` and `CRON_SECRET` before enabling scheduled runs.
 - Recharts and map controls are implemented; the map remains intentionally empty for articles without recognized locality text.
 - Existing Supabase projects must apply `202609150002_generalize_disease_values.sql` before ingesting additional diseases.
+- BigQuery path uses Application Default Credentials locally (`gcloud auth application-default login`); deployment will require a service account key or Workload Identity when moving off sandbox.
 
 ## Remaining Work
 
-1. Commit and push the latest chart, map, dashboard-control, and GDELT error-classification changes.
-2. Retry live GDELT after the upstream 429 cooldown; do not spam retries.
-3. Replace the retro map grid with a real Mumbai Leaflet/OpenStreetMap layer when geographic data requirements are approved.
-4. Add API/integration tests for authorization, ingestion idempotency, GDELT payloads, anomalies, and query filters.
-5. Compare TypeScript and Python anomaly outputs on a shared multi-day fixture.
-6. Add Python model-comparison notebooks after enough historical data is available.
-7. Configure GitHub Actions secrets `APP_URL` and `CRON_SECRET`, then manually run the workflow.
-8. Deploy the application and enable scheduled ingestion.
-9. Rotate the exposed Supabase service-role key and cron secret before deployment.
+1. Test live BigQuery ingestion: call `POST /api/ingest` (no query param) and confirm articles land in Supabase and appear on the dashboard.
+2. Replace the retro map grid with a real Mumbai Leaflet/OpenStreetMap layer when geographic data requirements are approved.
+3. Add API/integration tests for authorization, ingestion idempotency, GDELT payloads, anomalies, and query filters.
+4. Compare TypeScript and Python anomaly outputs on a shared multi-day fixture.
+5. Add Python model-comparison notebooks after enough historical data is available.
+6. Configure GitHub Actions secrets `APP_URL` and `CRON_SECRET`, then manually run the workflow.
+7. Deploy the application and enable scheduled ingestion.
+8. Rotate the exposed Supabase service-role key and cron secret before deployment.
+9. When upgrading from BigQuery sandbox to a standard GCP project, create a service account key and add it to the deployment environment as `GOOGLE_APPLICATION_CREDENTIALS`.
 
 ## Session Handoff Notes
 
