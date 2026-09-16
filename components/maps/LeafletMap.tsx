@@ -27,9 +27,9 @@ export default function LeafletMap({ points = [] }: { points?: MapPoint[] }) {
     if (!map.current) {
       map.current = L.map(mapContainer.current).setView([19.076, 72.8776], 11);
 
-      // Use a dark tile layer compatible with the theme
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: "© OpenStreetMap",
+      // Use OpenStreetMap standard tiles (proper street map)
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
         maxZoom: 19,
       }).addTo(map.current);
     }
