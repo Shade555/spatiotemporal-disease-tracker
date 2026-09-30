@@ -69,11 +69,20 @@ export async function POST(request: NextRequest) {
     runId = run.data.id;
 
     const sourceUrls = [...new Set(source.map((article) => article.url))];
-    const existingArticles = sourceUrls.length === 0
-      ? { data: [], error: null }
-      : await supabase.from("articles").select("url").in("url", sourceUrls);
-    if (existingArticles.error) throw existingArticles.error;
-    const existingUrls = new Set((existingArticles.data ?? []).map((article) => article.url));
+    const existingUrls = new Set<string>();
+    
+    // Chunk sourceUrls to avoid HeadersOverflowError when URLs are very long
+    const CHUNK_SIZE = 25;
+    for (let i = 0; i < sourceUrls.length; i += CHUNK_SIZE) {
+      const chunk = sourceUrls.slice(i, i + CHUNK_SIZE);
+      if (chunk.length > 0) {
+        const existingArticles = await supabase.from("articles").select("url").in("url", chunk);
+        if (existingArticles.error) throw existingArticles.error;
+        for (const article of existingArticles.data ?? []) {
+          existingUrls.add(article.url);
+        }
+      }
+    }
     let articlesInserted = 0;
     let entitiesExtracted = 0;
     for (const article of source) {
@@ -148,7 +157,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ status: "succeeded", source: sourceLabel, query, articlesSeen: source.length, articlesInserted, entitiesExtracted, startedAt });
   } catch (error) {
-    console.error("[ingest] Caught error:", error instanceof Error ? error.message : String(error));
+    console.error("[ingest] Caught error:", typeof error === "object" && error !== null && 'message' in error ? (error as any).message : String(error));
     if (error instanceof Error) console.error("[ingest] Stack:", error.stack);
     if (runId) {
       await supabase.from("pipeline_runs").update({ status: "failed", completed_at: new Date().toISOString(), error_message: error instanceof Error ? error.message : "Unknown ingestion failure" }).eq("id", runId);
