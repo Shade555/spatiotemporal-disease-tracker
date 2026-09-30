@@ -103,11 +103,12 @@ export function DashboardClient() {
       : [],
   );
 
-  async function handleRefresh() {
+  async function handleRefresh(source?: string) {
     setIsIngesting(true);
     try {
+      const url = source ? `/api/trigger-ingest?source=${source}` : "/api/trigger-ingest";
       // Call the trigger-ingest endpoint (server-side secret handling)
-      const response = await fetch("/api/trigger-ingest", {
+      const response = await fetch(url, {
         method: "POST",
         cache: "no-store",
       });
@@ -141,7 +142,15 @@ export function DashboardClient() {
         <span className="ml-auto">SYNC: {lastRefresh ?? "--:--"}</span>
         <button
           className="pixel-button px-3 py-2 text-[#f97316]"
-          onClick={handleRefresh}
+          onClick={() => handleRefresh("doc2")}
+          disabled={isIngesting}
+          type="button"
+        >
+          {isIngesting ? "[ INGESTING... ]" : "[ GDELT REFRESH ]"}
+        </button>
+        <button
+          className="pixel-button px-3 py-2 text-[#f97316]"
+          onClick={() => handleRefresh()}
           disabled={isIngesting}
           type="button"
         >

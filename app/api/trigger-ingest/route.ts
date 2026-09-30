@@ -11,10 +11,17 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const env = getServerEnv();
-    const appUrl = env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const appUrl = env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+
+    const searchParams = request.nextUrl.searchParams;
+    const source = searchParams.get("source");
+    const targetUrl = new URL(`${appUrl}/api/ingest`);
+    if (source) {
+      targetUrl.searchParams.set("source", source);
+    }
 
     // Call the protected /api/ingest endpoint with the server-side CRON_SECRET
-    const response = await fetch(`${appUrl}/api/ingest`, {
+    const response = await fetch(targetUrl.toString(), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${env.CRON_SECRET}`,
