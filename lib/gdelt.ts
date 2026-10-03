@@ -1,4 +1,6 @@
+import { BigQuery } from "@google-cloud/bigquery";
 import { getConfiguredDiseases, getServerEnv } from "@/lib/env";
+import { gdeltResponseSchema } from "@/lib/validation";
 import { location, type NormalizedArticle } from "@/lib/types";
 
 const requestTimeoutMs = 15_000;
@@ -94,8 +96,6 @@ type GdeltCloudStory = {
 export async function fetchGdeltArticles(): Promise<{ query: string; articles: NormalizedArticle[] }> {
   const env = getServerEnv();
   const query = "admin1=Maharashtra&category=HEALTH&days=14";
-  // We use the new GDELT Cloud API endpoint explicitly instead of env.GDELT_API_URL
-  // to avoid hitting the legacy API if it's still configured in .env
   const url = new URL("https://gdeltcloud.com/api/v2/stories");
   url.searchParams.set("admin1", "Maharashtra");
   url.searchParams.set("category", "HEALTH");
@@ -169,7 +169,6 @@ export async function fetchGdeltArticles(): Promise<{ query: string; articles: N
 
       return { query, articles };
     } catch (error) {
-      console.error("[gdelt] Fetch attempt failed:", error);
       lastError = error instanceof GdeltRequestError ? error : new GdeltRequestError(500, null);
     } finally {
       clearTimeout(timeout);
@@ -178,3 +177,216 @@ export async function fetchGdeltArticles(): Promise<{ query: string; articles: N
 
   throw lastError ?? new GdeltRequestError(429, null);
 }
+// ---------------------------------------------------------------------------
+// BigQuery path — primary data source (replaces DOC 2.0 API)
+// Queries the public GDELT GKG v2 table for Mumbai disease articles.
+// Uses Application Default Credentials (gcloud auth application-default login).
+// ---------------------------------------------------------------------------
+
+// Raw row shape returned by the GKG query.
+type GkgRow = {
+  url: string;
+  source_domain: string | null;
+  seen_date: { value: string } | string | null;
+  themes: string | null;
+  locations: string | null;
+  tone: string | null;
+};
+
+/**
+ * Parse the GKG DATE column (YYYYMMDDHHMMSS string) into an ISO timestamp.
+ * BigQuery returns DATE/DATETIME values as objects with a `value` property.
+ */
+function parseGkgDate(raw: GkgRow["seen_date"]): string {
+  const value = raw !== null && typeof raw === "object" ? raw.value : raw;
+  if (typeof value !== "string") return new Date().toISOString();
+  // YYYYMMDDHHMMSS format
+  const match = value.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+  if (match) {
+    const [, year, month, day, hour, minute, second] = match;
+    return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`).toISOString();
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+/**
+ * Derive a readable title from GKG fields.
+ * GKG doesn't have a clean title column, so we construct one from
+ * the source domain and the first matched theme.
+ */
+function deriveTitle(row: GkgRow, diseases: readonly string[]): string {
+  const domain = row.source_domain ?? "unknown source";
+  const matchedDisease = diseases.find(
+    (d) => row.themes?.toLowerCase().includes(d.toLowerCase()),
+  ) ?? diseases[0];
+  return `${matchedDisease} report via ${domain}`;
+}
+
+/**
+ * Convert a raw GKG row into the NormalizedArticle shape the rest of the
+ * pipeline already understands.
+ */
+function normalizeGkgRow(row: GkgRow, query: string, diseases: readonly string[]): NormalizedArticle | null {
+  const url = typeof row.url === "string" && row.url.trim() ? row.url.trim() : null;
+  if (!url) return null;
+  try { new URL(url); } catch { return null; }
+
+  return {
+    url,
+    title: deriveTitle(row, diseases),
+    snippet: row.themes ?? null,         // themes string is the best available summary
+    sourceDomain: row.source_domain ?? null,
+    sourceCountry: "India",              // we filter to India/Mumbai so this is safe
+    language: null,                      // not available in GKG
+    publishedAt: parseGkgDate(row.seen_date),
+    query,
+    location,
+    rawPayload: row as unknown as Record<string, unknown>,
+  };
+}
+
+export async function fetchGdeltArticlesBigQuery(): Promise<{ query: string; articles: NormalizedArticle[] }> {
+  const env = getServerEnv();
+  const diseases = getConfiguredDiseases();
+  const query = buildGdeltQuery();
+
+  const bigquery = new BigQuery({ projectId: env.GOOGLE_CLOUD_PROJECT });
+
+  // Build disease theme patterns
+  const diseaseThemes = diseases.map((d) => `DISEASE_${d.toUpperCase()}`).join("|");
+  const themeCondition = `REGEXP_CONTAINS(V2Themes, r'(${diseaseThemes})')`;
+
+  // DATE column is INT64 in YYYYMMDD format
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const yesterday = String(parseInt(today) - 1);
+
+  const sql = `
+    SELECT
+      DocumentIdentifier   AS url,
+      SourceCommonName     AS source_domain,
+      DATE                 AS seen_date,
+      V2Themes             AS themes,
+      V2Locations          AS locations,
+      V2Tone               AS tone
+    FROM \`gdelt-bq.gdeltv2.gkg\`
+    WHERE
+      DATE >= ${yesterday}
+      AND ${themeCondition}
+      AND REGEXP_CONTAINS(V2Locations, r'(?i)(mumbai|maharashtra|india)')
+    LIMIT 250
+  `;
+
+  // Cap bytes scanned to 100 MB per query to stay under free tier
+  const [rows] = await bigquery.query({
+    query: sql,
+    location: "US",
+    maximumBytesBilled: "104857600", // 100 MB in bytes
+  });
+
+  const articles = (rows as GkgRow[])
+    .map((row) => normalizeGkgRow(row, query, diseases))
+    .filter((a): a is NormalizedArticle => a !== null);
+
+  return { query, articles };
+}
+
+
+// ---------------------------------------------------------------------------
+// NewsAPI path — free tier, no quota issues
+// Searches for disease-related news in Mumbai/India region
+// ---------------------------------------------------------------------------
+
+type NewsApiArticle = {
+  source: { id: string | null; name: string };
+  author: string | null;
+  title: string;
+  description: string | null;
+  url: string;
+  urlToImage: string | null;
+  publishedAt: string;
+  content: string | null;
+};
+
+function normalizeNewsApiArticle(
+  article: NewsApiArticle,
+  query: string,
+): NormalizedArticle | null {
+  const url = article.url?.trim();
+  const title = article.title?.trim();
+  if (!url || !title) return null;
+
+  try {
+    new URL(url);
+  } catch {
+    return null;
+  }
+
+  return {
+    url,
+    title,
+    snippet: article.description ?? article.content ?? null,
+    sourceDomain: article.source?.name ?? null,
+    sourceCountry: "India",
+    language: "English",
+    publishedAt: new Date(article.publishedAt).toISOString(),
+    query,
+    location,
+    rawPayload: article,
+  };
+}
+
+export async function fetchNewsApiArticles(): Promise<{
+  query: string;
+  articles: NormalizedArticle[];
+}> {
+  const env = getServerEnv();
+  const diseases = getConfiguredDiseases();
+  const query = buildGdeltQuery();
+
+  // Build search query: fetch all health/disease/outbreak articles in Mumbai region
+  // Don't filter by specific disease names — let entity extraction classify them
+  const searchQuery = `(Mumbai OR India) AND (health OR disease OR outbreak OR epidemic OR pandemic OR cases OR fever OR infection)`;
+
+  const url = new URL("https://newsapi.org/v2/everything");
+  url.searchParams.set("q", searchQuery);
+  url.searchParams.set("sortBy", "publishedAt");
+  url.searchParams.set("language", "en");
+  url.searchParams.set("pageSize", "100");
+  url.searchParams.set("apiKey", env.NEWSAPI_KEY);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+
+  try {
+    const response = await fetch(url.toString(), {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `NewsAPI returned ${response.status}: ${response.statusText}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      articles?: NewsApiArticle[];
+      status?: string;
+      message?: string;
+    };
+
+    if (data.status !== "ok") {
+      throw new Error(`NewsAPI error: ${data.message ?? "unknown error"}`);
+    }
+
+    const articles = (data.articles ?? [])
+      .map((article) => normalizeNewsApiArticle(article, query))
+      .filter((a): a is NormalizedArticle => a !== null);
+
+    return { query, articles };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+

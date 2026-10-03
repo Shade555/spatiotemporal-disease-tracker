@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerEnv } from "@/lib/env";
+import { POST as runIngest } from "../ingest/route";
 
 export const dynamic = "force-dynamic";
 
@@ -12,40 +13,28 @@ export async function POST(request: NextRequest) {
   try {
     const env = getServerEnv();
     
-    // Always trust the incoming request's origin first, to avoid Vercel env vars 
-    // (like NEXT_PUBLIC_APP_URL=http://localhost:3000) from breaking the app.
-    // If somehow missing, fallback to env.NEXT_PUBLIC_APP_URL.
-    let appUrl = request.nextUrl.origin;
-    if (appUrl === "http://localhost:3000" && process.env.VERCEL_URL) {
-       // Edge case: Vercel serverless function with weird host header
-       appUrl = `https://${process.env.VERCEL_URL}`;
-    } else if (appUrl === "http://localhost:3000" && env.NEXT_PUBLIC_APP_URL && env.NEXT_PUBLIC_APP_URL !== "http://localhost:3000") {
-       appUrl = env.NEXT_PUBLIC_APP_URL;
-    }
+    // Create a new request based on the original one but add the Authorization header
+    const headers = new Headers(request.headers);
+    headers.set("Authorization", `Bearer ${env.CRON_SECRET}`);
 
-    const searchParams = request.nextUrl.searchParams;
-    const source = searchParams.get("source");
-    const targetUrl = new URL(`${appUrl}/api/ingest`);
+    const url = new URL(request.url);
+    const source = url.searchParams.get("source");
+    const targetUrl = new URL(request.url);
+    targetUrl.pathname = "/api/ingest";
     if (source) {
       targetUrl.searchParams.set("source", source);
+    } else {
+      targetUrl.searchParams.delete("source");
     }
 
-    // Call the protected /api/ingest endpoint with the server-side CRON_SECRET
-    const response = await fetch(targetUrl.toString(), {
+    const modifiedRequest = new NextRequest(targetUrl.toString(), {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.CRON_SECRET}`,
-        "Content-Type": "application/json",
-      },
+      headers,
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    return NextResponse.json(data, { status: 200 });
+    // Directly call the handler to avoid network loopback and Vercel header stripping
+    const response = await runIngest(modifiedRequest);
+    return response;
   } catch (error) {
     console.error("[trigger-ingest]", error);
     return NextResponse.json(
