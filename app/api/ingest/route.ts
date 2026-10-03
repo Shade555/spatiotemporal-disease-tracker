@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
   const searchParams = new URL(request.url).searchParams;
   const sourceParam = searchParams.get("source"); // "fixture" | "doc2" | null (default: bigquery)
   const useFixture = sourceParam === "fixture";
-  const useLegacyApi = sourceParam === "doc2";
   const supabase = getSupabaseAdmin();
   const startedAt = new Date().toISOString();
   let query = "";
@@ -38,8 +37,9 @@ export async function POST(request: NextRequest) {
       source = gdeltResponseSchema.parse(sampleResponse).articles
         .map((article) => normalizeGdeltArticle(article, `Mumbai (${configuredDiseases.join(" OR ")})`))
         .filter((article): article is NonNullable<typeof article> => article !== null);
-    } else if (useLegacyApi) {
-      sourceLabel = "gdelt-doc2";
+    } else if (sourceParam === "doc2" || sourceParam === "gdelt-cloud") {
+      sourceLabel = "gdelt-cloud";
+      console.log("[ingest] Starting GDELT Cloud fetch...");
       source = (await fetchGdeltArticles()).articles;
     } else if (sourceParam === "bigquery") {
       sourceLabel = "bigquery";

@@ -81,58 +81,98 @@ export function normalizeGdeltArticle(article: Record<string, unknown>, query: s
   };
 }
 
+type GdeltCloudStory = {
+  story_date: string;
+  first_published_at: string;
+  title: string;
+  summary?: string;
+  top_articles: Array<{
+    url: string;
+    title: string;
+    domain: string;
+  }>;
+};
+
 export async function fetchGdeltArticles(): Promise<{ query: string; articles: NormalizedArticle[] }> {
   const env = getServerEnv();
-  const query = buildGdeltQuery();
+  const query = "admin1=Maharashtra&category=HEALTH&days=14";
   const url = new URL(env.GDELT_API_URL);
-  url.searchParams.set("query", query);
-  url.searchParams.set("format", "json");
-  url.searchParams.set("mode", "artlist");
-  url.searchParams.set("maxrecords", "250");
-  url.searchParams.set("timespan", "1d");
-  url.searchParams.set("sort", "datedesc");
+  url.searchParams.set("admin1", "Maharashtra");
+  url.searchParams.set("category", "HEALTH");
+  url.searchParams.set("days", "14"); // Go back 14 days to catch rich health news
+  url.searchParams.set("limit", "100");
 
-  let lastError: GdeltRequestError | null = null;
+  let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // Always pace requests — wait before every attempt, not just retries.
-    // On the first attempt this respects the 5-second minimum interval.
-    // On retries it applies exponential backoff on top.
-    const delay = attempt === 0 ? MIN_REQUEST_INTERVAL_MS : backoffMs(attempt, lastError?.retryAfter ?? null);
-    await sleep(delay);
-
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
 
+    if (attempt > 0) {
+      console.log(`[gdelt] Retrying GDELT Cloud API (attempt ${attempt + 1}/${MAX_RETRIES + 1})...`);
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
     try {
-      const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${env.GDELT_CLOUD_API_KEY}`,
+        },
+        signal: controller.signal,
+        cache: "no-store",
+      });
 
       if (response.status === 429) {
         lastError = new GdeltRequestError(response.status, response.headers.get("retry-after"));
-        console.warn(`GDELT 429 on attempt ${attempt + 1}/${MAX_RETRIES + 1}. Backing off.`);
-        continue; // retry
+        continue;
       }
 
       if (!response.ok) {
         throw new GdeltRequestError(response.status, response.headers.get("retry-after"));
       }
 
-      const parsed = gdeltResponseSchema.parse(await response.json());
-      return {
-        query,
-        articles: parsed.articles
-          .map((article) => normalizeGdeltArticle(article, query))
-          .filter((article): article is NormalizedArticle => article !== null),
-      };
+      const json = await response.json();
+      if (!json.success || !json.data) {
+        throw new Error("Invalid GDELT Cloud API response format");
+      }
+
+      const stories = json.data as GdeltCloudStory[];
+      const articles: NormalizedArticle[] = [];
+
+      for (const story of stories) {
+        if (!story.top_articles || story.top_articles.length === 0) continue;
+        const top = story.top_articles[0];
+        
+        try {
+          new URL(top.url);
+        } catch {
+          continue; // Invalid URL
+        }
+
+        articles.push({
+          url: top.url,
+          title: top.title,
+          snippet: story.summary || story.title,
+          sourceDomain: top.domain,
+          sourceCountry: "India",
+          language: "English",
+          publishedAt: story.first_published_at || new Date().toISOString(),
+          query: "admin1=Maharashtra&category=HEALTH",
+          location: "Mumbai",
+          rawPayload: story as unknown as Record<string, unknown>,
+        });
+      }
+
+      return { query, articles };
+    } catch (error) {
+      lastError = error instanceof GdeltRequestError ? error : new GdeltRequestError(500, null);
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  // All retries exhausted — surface the last 429 to the caller.
   throw lastError ?? new GdeltRequestError(429, null);
 }
-
 // ---------------------------------------------------------------------------
 // BigQuery path — primary data source (replaces DOC 2.0 API)
 // Queries the public GDELT GKG v2 table for Mumbai disease articles.
@@ -345,3 +385,4 @@ export async function fetchNewsApiArticles(): Promise<{
     clearTimeout(timeout);
   }
 }
+
