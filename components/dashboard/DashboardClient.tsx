@@ -142,6 +142,14 @@ export function DashboardClient() {
         <span className="ml-auto">SYNC: {lastRefresh ?? "--:--"}</span>
         <button
           className="pixel-button px-3 py-2 text-[#f97316]"
+          onClick={() => handleRefresh("doc2")}
+          disabled={isIngesting}
+          type="button"
+        >
+          {isIngesting ? "[ INGESTING... ]" : "[ GDELT REFRESH ]"}
+        </button>
+        <button
+          className="pixel-button px-3 py-2 text-[#f97316]"
           onClick={() => handleRefresh()}
           disabled={isIngesting}
           type="button"
