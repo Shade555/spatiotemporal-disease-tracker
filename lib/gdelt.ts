@@ -95,11 +95,11 @@ type GdeltCloudStory = {
 
 export async function fetchGdeltArticles(): Promise<{ query: string; articles: NormalizedArticle[] }> {
   const env = getServerEnv();
-  const query = "admin1=Maharashtra&category=HEALTH&days=14";
+  const query = "admin1=Maharashtra&category=HEALTH&days=30";
   const url = new URL("https://gdeltcloud.com/api/v2/stories");
   url.searchParams.set("admin1", "Maharashtra");
   url.searchParams.set("category", "HEALTH");
-  url.searchParams.set("days", "14"); // Go back 14 days to catch rich health news
+  url.searchParams.set("days", "30"); // Go back 30 days to catch rich health news
   url.searchParams.set("limit", "100");
 
   let lastError: Error | null = null;
@@ -144,27 +144,28 @@ export async function fetchGdeltArticles(): Promise<{ query: string; articles: N
       const articles: NormalizedArticle[] = [];
 
       for (const story of stories) {
-        if (!story.top_articles || story.top_articles.length === 0) continue;
-        const top = story.top_articles[0];
+        if (!story.top_articles) continue;
         
-        try {
-          new URL(top.url);
-        } catch {
-          continue; // Invalid URL
-        }
+        for (const top of story.top_articles) {
+          try {
+            new URL(top.url);
+          } catch {
+            continue; // Invalid URL
+          }
 
-        articles.push({
-          url: top.url,
-          title: top.title,
-          snippet: story.summary || story.title,
-          sourceDomain: top.domain,
-          sourceCountry: "India",
-          language: "English",
-          publishedAt: story.first_published_at || new Date().toISOString(),
-          query: "admin1=Maharashtra&category=HEALTH",
-          location: "Mumbai",
-          rawPayload: story as unknown as Record<string, unknown>,
-        });
+          articles.push({
+            url: top.url,
+            title: top.title,
+            snippet: story.summary || story.title,
+            sourceDomain: top.domain,
+            sourceCountry: "India",
+            language: "English",
+            publishedAt: story.first_published_at || new Date().toISOString(),
+            query: "admin1=Maharashtra&category=HEALTH",
+            location: "Mumbai",
+            rawPayload: story as unknown as Record<string, unknown>,
+          });
+        }
       }
 
       return { query, articles };
