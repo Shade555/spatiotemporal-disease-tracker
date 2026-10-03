@@ -95,11 +95,11 @@ type GdeltCloudStory = {
 
 export async function fetchGdeltArticles(): Promise<{ query: string; articles: NormalizedArticle[] }> {
   const env = getServerEnv();
-  const query = "admin1=Maharashtra&category=HEALTH&days=30";
+  const query = "admin1=Maharashtra&category=HEALTH&days=100";
   const url = new URL("https://gdeltcloud.com/api/v2/stories");
   url.searchParams.set("admin1", "Maharashtra");
   url.searchParams.set("category", "HEALTH");
-  url.searchParams.set("days", "30"); // Go back 30 days to catch rich health news
+  url.searchParams.set("days", "100"); // Go back 100 days to catch rich health news
   url.searchParams.set("limit", "100");
 
   let lastError: Error | null = null;
