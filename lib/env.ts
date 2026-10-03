@@ -5,7 +5,7 @@ const serverEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   CRON_SECRET: z.string().min(1),
-  GDELT_CLOUD_API_KEY: z.string().min(1),
+  GDELT_CLOUD_API_KEY: z.string().default(""),
   GDELT_API_URL: z.string().url().default("https://gdeltcloud.com/api/v2/stories"),
   GDELT_QUERY_LOCATION: z.literal("Mumbai").default("Mumbai"),
   GDELT_QUERY_DISEASES: z.string().default("Dengue,Malaria"),

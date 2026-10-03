@@ -108,6 +108,10 @@ export async function fetchGdeltArticles(): Promise<{ query: string; articles: N
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
 
+    if (!env.GDELT_CLOUD_API_KEY) {
+      throw new Error("Missing GDELT_CLOUD_API_KEY in environment variables. Please add it to Vercel.");
+    }
+
     if (attempt > 0) {
       console.log(`[gdelt] Retrying GDELT Cloud API (attempt ${attempt + 1}/${MAX_RETRIES + 1})...`);
       await new Promise((resolve) => setTimeout(resolve, 2000));
