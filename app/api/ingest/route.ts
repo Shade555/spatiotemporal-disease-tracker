@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         language: article.language,
         published_at: article.publishedAt,
         query: article.query,
-        location: article.location,
+        location: article.location, latitude: article.latitude, longitude: article.longitude, locality: article.locality,
         raw_payload: article.rawPayload,
       }, { onConflict: "url", ignoreDuplicates: false }).select("id").single();
       if (stored.error) throw stored.error;

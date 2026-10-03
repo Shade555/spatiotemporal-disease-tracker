@@ -28,5 +28,8 @@ export type NormalizedArticle = {
   publishedAt: string;
   query: string;
   location: typeof location;
+  latitude: number | null;
+  longitude: number | null;
+  locality: string | null;
   rawPayload: Record<string, unknown>;
 };

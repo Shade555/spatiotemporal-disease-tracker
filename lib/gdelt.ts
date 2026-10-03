@@ -77,7 +77,7 @@ export function normalizeGdeltArticle(article: Record<string, unknown>, query: s
     publishedAt: parsePublishedAt(article.seendate ?? article.published_at),
     query,
     location,
-    rawPayload: article,
+    latitude: null, longitude: null, locality: null, rawPayload: article,
   };
 }
 
@@ -91,6 +91,11 @@ type GdeltCloudStory = {
     title: string;
     domain: string;
   }>;
+  geo?: {
+    location?: string;
+    latitude?: number;
+    longitude?: number;
+  };
 };
 
 export async function fetchGdeltArticles(): Promise<{ query: string; articles: NormalizedArticle[] }> {
@@ -163,6 +168,9 @@ export async function fetchGdeltArticles(): Promise<{ query: string; articles: N
             publishedAt: story.first_published_at || new Date().toISOString(),
             query: "admin1=Maharashtra&category=HEALTH",
             location: "Mumbai",
+            latitude: story.geo?.latitude ?? null,
+            longitude: story.geo?.longitude ?? null,
+            locality: story.geo?.location ?? null,
             rawPayload: story as unknown as Record<string, unknown>,
           });
         }
@@ -243,6 +251,9 @@ function normalizeGkgRow(row: GkgRow, query: string, diseases: readonly string[]
     publishedAt: parseGkgDate(row.seen_date),
     query,
     location,
+    latitude: null,
+    longitude: null,
+    locality: null,
     rawPayload: row as unknown as Record<string, unknown>,
   };
 }
@@ -333,6 +344,9 @@ function normalizeNewsApiArticle(
     publishedAt: new Date(article.publishedAt).toISOString(),
     query,
     location,
+    latitude: null,
+    longitude: null,
+    locality: null,
     rawPayload: article,
   };
 }
