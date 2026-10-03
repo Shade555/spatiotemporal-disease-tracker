@@ -96,7 +96,9 @@ type GdeltCloudStory = {
 export async function fetchGdeltArticles(): Promise<{ query: string; articles: NormalizedArticle[] }> {
   const env = getServerEnv();
   const query = "admin1=Maharashtra&category=HEALTH&days=14";
-  const url = new URL(env.GDELT_API_URL);
+  // We use the new GDELT Cloud API endpoint explicitly instead of env.GDELT_API_URL
+  // to avoid hitting the legacy API if it's still configured in .env
+  const url = new URL("https://gdeltcloud.com/api/v2/stories");
   url.searchParams.set("admin1", "Maharashtra");
   url.searchParams.set("category", "HEALTH");
   url.searchParams.set("days", "14"); // Go back 14 days to catch rich health news
@@ -169,6 +171,7 @@ export async function fetchGdeltArticles(): Promise<{ query: string; articles: N
 
       return { query, articles };
     } catch (error) {
+      console.error("[gdelt] Fetch attempt failed:", error);
       lastError = error instanceof GdeltRequestError ? error : new GdeltRequestError(500, null);
     } finally {
       clearTimeout(timeout);
